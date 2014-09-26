@@ -1,0 +1,65 @@
+@ruler-height: 50px;
+@sidebar-width: 100px;
+
+.tl-root {
+	position: relative;
+	width: 100%;
+	height: 600px;
+	background: #eee;
+
+	.tl-sidebar {
+		position: absolute;
+		top: @ruler-height;
+		bottom: 0;
+		left: 0;
+		width: @sidebar-width;
+		background: #ccc;
+	}
+
+	.tl-ruler {
+		position: absolute;
+		overflow: hidden;
+		top: 0;
+		right: 0;
+		left: @sidebar-width;
+		height: @ruler-height;
+		background: #bbb;
+
+		.tl-dashes {
+			position: absolute;
+			left: 0;
+			bottom: 0; 
+			right: 0;
+			top: 0;
+
+			.tl-dash {
+				position: absolute;
+				bottom: 0;
+				width: 1px;
+				height: 10px;
+				background: #666;
+			}
+		}
+
+		.tl-ranges {
+			position: absolute;
+			left: 0;
+			bottom: 0; 
+			right: 0;
+			top: 0;
+
+			.tl-range {
+				position: absolute;
+				top: 0;
+				bottom:0;
+
+				.tl-heading {
+					text-align: center;
+					height: 30px;
+					background: #888;
+
+				}
+			}
+		}
+	}
+}

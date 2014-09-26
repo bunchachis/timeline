@@ -1,0 +1,36 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="utf-8">
+        <title>title</title>
+        <script src="moment.js"></script> 
+        <script src="jquery-2.1.0.min.js"></script> 
+        <script src="timeline.js"></script> 
+        <link rel="stylesheet/less" type="text/css" href="timeline.less" />
+        <script src="less-1.7.5.min.js"></script>
+    </head>
+    <body>
+    	<div id="test"></div>
+    	<script>
+    		$(function(){
+	    		new Timeline('#test', {
+	    			ranges: [
+	    				{from: moment('1.09.2014', 'DD.MM.YYYY').unix(), to: moment('4.09.2014', 'DD.MM.YYYY').unix()},
+	    				{from: moment('6.09.2014', 'DD.MM.YYYY').unix(), to: moment('10.09.2014', 'DD.MM.YYYY').unix()}
+	    			],
+	    			scale: 24*3600 / 150, // sec/px
+	    			ruler: {
+	    				dashes: [
+    						{type: 'every', step: 24*3600, class: 'daily'}
+	    				]
+	    			}
+	    		}, {
+	    			lines: [
+	    				{name: 'Line 1'}
+	    			]
+	    		});
+	    	});
+    	</script>
+
+    </body>
+</html>
