@@ -6,20 +6,33 @@ class Timeline
 	constructor: (container, config = {}, data = {})->
 		@$container = $ container
 		@config = $.extend true, @getDefaultConfig(), config
-		@data = $.extend {lines:[], items:[]}, data
+		@data = $.extend {items:[]}, data
 
 		@ranges = []
 		@addRange range for range in @config.ranges
+
+		@lines = []
+		@addLine line for line in @config.lines
 
 		@build()
 
 	addRange: (range)->
 		for range2 in @ranges
-			throw 'Can\'t add range overlapping existing one' if range.from < range2.to and range.to > range2.from 
+			if range.from < range2.to and range.to > range2.from 
+				throw 'Can\'t add range overlapping existing one'
 
 		@ranges.push range
 		@ranges = @ranges.sort (a, b)->
 			a.from - b.from
+
+	addLine: (line)->
+		for line2 in @lines
+			if line2.name is line.name
+				throw 'Can\'t add line with same name as existing one has'
+
+		@lines.push line
+		@lines = @lines.sort (a, b)->
+			(a.order ? 0) - (b. order? 0)
 
 	getDefaultConfig: ->
 		ruler:
@@ -34,8 +47,19 @@ class Timeline
 		field:
 			lines:
 				render: $.proxy @, 'renderFieldLine'
+			ranges:
+				render: $.proxy @, 'renderFieldRange'
 			items:
 				render: $.proxy @, 'renderFieldItem'
+		range:
+			extraOffset: 
+				before: 5
+				after: 15
+		line:
+			height: 30
+			extraOffset:
+				before: 5
+				after: 10	
 		ranges: []
 
 	addDom: (name, $container)->
@@ -48,10 +72,6 @@ class Timeline
 		@buildSidebar()
 		@buildRuler()
 		@buildField();
-
-	buildSidebar: ->
-		@$sidebar = @addDom 'sidebar', @$root
-		@buildSidebarLines()
 
 	buildRuler: ->
 		@$ruler = @addDom 'ruler', @$root
@@ -74,14 +94,13 @@ class Timeline
 		@addDom('heading').text "#{from} — #{to}"
 
 	placeRulerRange: ($range, range)->
-		offset = @getOffset range.from
 		$range.css
-			left: offset
-			width: @getOffset(range.to) - offset
+			left: @getOffset(range.from) - @config.range.extraOffset.before
+			width: @getRangeInnerWidth(range)
 
 	buildRulerDashes: ->
 		@$rulerDashes = @addDom 'dashes', @$ruler
-		dashes = @calculateRulerDashes()
+		dashes = @calcRulerDashes()
 		@buildRulerDash dash for dash in dashes
 
 	buildRulerDash: (dash)->
@@ -100,31 +119,37 @@ class Timeline
 			@getRangeOffset(range) + @getInRangeOffset(range, time)
 
 	getInRangeOffset: (range, time)->
-		Math.ceil((time - range.from) / @config.scale)
+		Math.ceil((time - range.from) / @config.scale) +
+		@config.range.extraOffset.before
 
 	getRangeOffset: (range)->
 		sum = 0
 		for range2 in @ranges when range2.from < range.from
-			sum += @getRangeWidth range2
+			sum += @getRangeOuterWidth range2
 		sum
 
-	getRangeWidth: (range)->
+	getRangeInnerWidth: (range)->
 		Math.ceil((range.to - range.from) / @config.scale)
+
+	getRangeOuterWidth: (range)->
+		@getRangeInnerWidth(range) +
+		@config.range.extraOffset.before +
+		@config.range.extraOffset.after
 
 	getRangeByTime: (time)->
 		for range in @ranges
-			if range.from <= time <= range.to
+			if range.from <= time < range.to
 				return range
 
-	calculateRulerDashes: ->
+	calcRulerDashes: ->
 		dashes = []
 		for rule in @config.ruler.dashes 
 			for range in @ranges
 				if rule.type is 'every'
-					dashes = dashes.concat @calculateRulerDashesEvery(range, rule)
+					dashes = dashes.concat @calcRulerDashesEvery(range, rule)
 		dashes
 
-	calculateRulerDashesEvery: (range, rule)->
+	calcRulerDashesEvery: (range, rule)->
 		dashes = []
 		time = range.from
 		while time < range.to
@@ -132,34 +157,94 @@ class Timeline
 			time += rule.step
 		dashes
 
+	buildSidebar: ->
+		@$sidebar = @addDom 'sidebar', @$root
+		@buildSidebarLines()
+
 	buildSidebarLines: ->
 		@$sidebarLines = @addDom 'lines', @$sidebar
-		@buildSidebarLine line for line in @getSortedLines()
+		@buildSidebarLine line for line in @lines
 
 	buildSidebarLine: (line)->
 		$line = @addDom 'line', @$sidebarLines
 		render = line.sidebarRender ? @config.sidebar.lines.render
 		$line.html render line
+		@placeSidebarLine $line, line
 
 	renderSidebarLine: (line)->
 		@addDom('heading').text line.name
 
+	placeSidebarLine: ($line, line)->
+		$line.css
+			top: @getVerticalOffset(line.name) - @config.line.extraOffset.before
+			height: @getLineInnerHeight line
+
+	getVerticalOffset: (lineName)->	
+		line = @getLineByName lineName
+		if line?
+			@getLineVerticalOffset(line) + @config.line.extraOffset.before
+
+	getLineVerticalOffset: (line)->
+		sum = 0
+		for line2 in @lines
+			break if line2.name is line.name
+			sum += @getLineOuterHeight line2
+		sum
+
+	getLineInnerHeight: (line)->
+		line.height ? @config.line.height
+
+	getLineOuterHeight: (line)->
+		@getLineInnerHeight(line) +
+		@config.line.extraOffset.before +
+		@config.line.extraOffset.after
+
+	getLineByName: (lineName)->
+		for line in @lines
+			if line.name is lineName
+				return line
+
 	buildField: ->
 		@$field = @addDom 'field', @$root
 		@buildFieldLines()
+		@buildFieldRanges()
 		@buildFieldItems()
 
 	buildFieldLines: ->
 		@$fieldLines = @addDom 'lines', @$field
-		@buildFieldLine line for line in @getSortedLines()
+		@buildFieldLine line for line in @lines
 
 	buildFieldLine: (line)->
 		$line = @addDom 'line', @$fieldLines
 		render = line.fieldRender ? @config.field.lines.render
 		$line.html render line
+		@placeFieldLine $line, line
 
 	renderFieldLine: (line)->
 		''
+
+	placeFieldLine: ($line, line)->
+		$line.css
+			top: @getVerticalOffset(line.name) - @config.line.extraOffset.before
+			height: @getLineInnerHeight line
+
+	buildFieldRanges: ->
+		@$fieldRanges = @addDom 'ranges', @$field
+		@buildFieldRange range for range in @ranges
+
+	buildFieldRange: (range)->
+		$range = @addDom 'range', @$fieldRanges
+		render = range.fieldRender ? @config.field.ranges.render
+		$range.html render range
+		@placeFieldRange $range, range
+
+	renderFieldRange: (range)->
+		''
+
+	placeFieldRange: ($range, range)->
+		$range.css
+			left: @getOffset(range.from) - @config.range.extraOffset.before
+			width: @getRangeInnerWidth(range)
 
 	buildFieldItems: ->
 		@$fieldItems = @addDom 'items', @$field
@@ -172,9 +257,5 @@ class Timeline
 
 	renderFieldItem: (item)->
 		item.html ? $('<p />').text(item.text)
-
-	getSortedLines: ->
-		@data.lines.sort (a, b)->
-			(a.order ? 0) - (b. order? 0)
 
 window.Timeline = Timeline

@@ -8,6 +8,9 @@
         <script src="timeline.js"></script> 
         <link rel="stylesheet/less" type="text/css" href="timeline.less" />
         <script src="less-1.7.5.min.js"></script>
+        <style>
+        	html {background:#000;}
+        </style>
     </head>
     <body>
     	<div id="test"></div>
@@ -15,19 +18,32 @@
     		$(function(){
 	    		new Timeline('#test', {
 	    			ranges: [
-	    				{from: moment('1.09.2014', 'DD.MM.YYYY').unix(), to: moment('4.09.2014', 'DD.MM.YYYY').unix()},
-	    				{from: moment('6.09.2014', 'DD.MM.YYYY').unix(), to: moment('10.09.2014', 'DD.MM.YYYY').unix()}
+	    				{
+	    					from: moment('1.09.2014', 'DD.MM.YYYY').unix(),
+	    					to: moment('3.09.2014', 'DD.MM.YYYY').unix()
+	    				},
+	    				{
+	    					from: moment('6.09.2014', 'DD.MM.YYYY').unix(),
+	    					to: moment('8.09.2014', 'DD.MM.YYYY').unix()
+	    				},
+	    				{
+	    					from: moment('8.09.2014', 'DD.MM.YYYY').unix(),
+	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix()
+	    				}
+	    			],
+	    			lines: [
+	    				{name: 'Line 1'},
+	    				{name: 'Line 2'},
+	    				{name: 'Line 3'}
 	    			],
 	    			scale: 24*3600 / 150, // sec/px
 	    			ruler: {
 	    				dashes: [
-    						{type: 'every', step: 24*3600, class: 'daily'}
+    						{type: 'every', step: 24*3600}
 	    				]
 	    			}
 	    		}, {
-	    			lines: [
-	    				{name: 'Line 1'}
-	    			]
+	    			
 	    		});
 	    	});
     	</script>
