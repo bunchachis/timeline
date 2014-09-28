@@ -56,27 +56,73 @@ class Timeline
 				before: 5
 				after: 15
 		line:
-			height: 30
+			height: 50
 			extraOffset:
 				before: 5
 				after: 10	
 		ranges: []
 
 	addDom: (name, $container)->
-		element = $('<div />').addClass "tl-#{name}"
-		element.appendTo $container if $container
-		element
+		$element = $('<div />').addClass "tl-#{name}"
+		if $container
+			$element.appendTo @getScrollContainer $container
+		$element
+
+	scrollize: ($element, axis, pairs = [])->
+		$inner = @addDom 'scroll-inner', $element
+		$element.data 'scroll-inner', $inner
+
+		config =
+			axis: axis
+			scrollInertia: 0
+			mouseWheel: {}
+			callbacks: {}
+
+		config.mouseWheel.axis = 'x' if axis is 'xy'
+
+		if pairs.length
+			config.callbacks.whileScrolling = ->
+				for pair in pairs
+					position = {}
+					position.x = @mcs.left + 'px' if pair.axis.indexOf 'x' > -1
+					position.y = @mcs.top + 'px' if pair.axis.indexOf 'y' > -1
+
+					$target = pair.getTarget()
+					if $target.length
+						$target.mCustomScrollbar 'scrollTo', position,
+							scrollInertia: 0
+							timeout: 0
+							callbacks: false
+
+		$element.mCustomScrollbar config
+
+	getScrollContainer: ($element)->
+		$inner = $element.data 'scroll-inner'
+
+		if $inner?.length
+			$inner
+		else
+			$element
 
 	build: ->
 		@$root = @addDom 'root', @$container
 		@buildSidebar()
 		@buildRuler()
-		@buildField();
+		@buildField()
 
 	buildRuler: ->
 		@$ruler = @addDom 'ruler', @$root
+		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => @$field}]
+		@placeRulerInner()
 		@buildRulerRanges()
 		@buildRulerDashes()
+
+	placeRulerInner: ->
+		sum = 0
+		sum += @getRangeOuterWidth range for range in @ranges
+		@getScrollContainer(@$ruler).css
+			width: sum
+		@$ruler.mCustomScrollbar 'update'
 
 	buildRulerRanges: ->
 		@$rulerRanges = @addDom 'ranges', @$ruler
@@ -159,7 +205,16 @@ class Timeline
 
 	buildSidebar: ->
 		@$sidebar = @addDom 'sidebar', @$root
+		@scrollize @$sidebar, 'y', [{axis: 'y', getTarget: => @$field}]
+		@placeSidebarInner()
 		@buildSidebarLines()
+
+	placeSidebarInner: ->
+		sum = 0
+		sum += @getLineOuterHeight line for line in @lines
+		@getScrollContainer(@$sidebar).css
+			height: sum
+		@$sidebar.mCustomScrollbar 'update'
 
 	buildSidebarLines: ->
 		@$sidebarLines = @addDom 'lines', @$sidebar
@@ -206,9 +261,21 @@ class Timeline
 
 	buildField: ->
 		@$field = @addDom 'field', @$root
+		@scrollize @$field, 'xy', [{axis: 'x', getTarget: => @$ruler}, {axis: 'y', getTarget: => @$sidebar}]
+		@placeFieldInner()
 		@buildFieldLines()
 		@buildFieldRanges()
 		@buildFieldItems()
+
+	placeFieldInner: ->
+		xSum = 0
+		xSum += @getRangeOuterWidth range for range in @ranges
+		ySum = 0
+		ySum += @getLineOuterHeight line for line in @lines
+		@getScrollContainer(@$field).css
+			width: xSum
+			height: ySum
+		@$field.mCustomScrollbar 'update'
 
 	buildFieldLines: ->
 		@$fieldLines = @addDom 'lines', @$field
@@ -254,8 +321,17 @@ class Timeline
 		$item = @addDom 'item', @$fieldItems
 		render = item.render ? @config.field.items.render
 		$item.html render item
+		@placeFieldItem $item, item
 
 	renderFieldItem: (item)->
-		item.html ? $('<p />').text(item.text)
+		item.html ? @addDom('text').text(item.text)
+
+	placeFieldItem: ($item, item)->
+		offset = @getOffset item.from
+		$item.css
+			top: @getVerticalOffset item.line
+			height: @getLineInnerHeight @getLineByName item.line
+			left: offset
+			width: @getOffset(item.to) - offset
 
 window.Timeline = Timeline

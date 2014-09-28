@@ -3,16 +3,26 @@
     <head>
         <meta charset="utf-8">
         <title>title</title>
-        <script src="moment.js"></script> 
-        <script src="jquery-2.1.0.min.js"></script> 
-        <script src="timeline.js"></script> 
-        <link rel="stylesheet/less" type="text/css" href="timeline.less" />
-        <script src="less-1.7.5.min.js"></script>
         <style>
         	html {background:#000;}
+
+        	.mCSB_container {margin:0 !important; padding:0 !important;}
+        	.mCSB_container_wrapper {margin:0 !important;}
         </style>
+
+        <script src="moment.js"></script> 
+        <script src="jquery-2.1.0.min.js"></script>
+
+        <link rel="stylesheet" href="jquery.mCustomScrollbar.css" />
+        <script src="jquery.mCustomScrollbar.js"></script>
+
+        <script src="timeline.js"></script> 
+        <link rel="stylesheet/less" type="text/css" href="timeline.less" />
+
+        <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
+    	<br><br><br>
     	<div id="test"></div>
     	<script>
     		$(function(){
@@ -34,7 +44,13 @@
 	    			lines: [
 	    				{name: 'Line 1'},
 	    				{name: 'Line 2'},
-	    				{name: 'Line 3'}
+	    				{name: 'Line 3'},
+	    				{name: 'Line 4'},
+	    				{name: 'Line 5'},
+	    				{name: 'Line 6'},
+	    				{name: 'Line 7'},
+	    				{name: 'Line 8'},
+	    				{name: 'Line 9'}
 	    			],
 	    			scale: 24*3600 / 150, // sec/px
 	    			ruler: {
@@ -43,10 +59,16 @@
 	    				]
 	    			}
 	    		}, {
-	    			
+	    			items: [
+	    				{
+	    					line: 'Line 1',
+	    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+	    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+	    					text: 'Item 1'
+	    				}
+	    			]
 	    		});
 	    	});
     	</script>
-
     </body>
 </html>
