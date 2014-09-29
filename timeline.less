@@ -4,7 +4,7 @@
 .tl-root {
 	position: relative;
 	width: 100%;
-	height: 400px;
+	height: 500px;
 	background: #eee;
 
 	.tl-sidebar {
@@ -15,17 +15,17 @@
 		width: @sidebar-width;
 		background: #ccc;
 
-		.tl-scroll-inner {
-			position: relative;
-			width: @sidebar-width;
-		}
-
-		.tl-lines {
+		.tl-group {
 			position: absolute;
 			left: 0;
 			right: 0;
-			top: 0;
-			bottom: 0;
+			border-top: 5px solid black;
+			border-bottom: 5px solid black;
+
+			.tl-scroll-inner {
+				position: relative;
+				width: @sidebar-width;
+			}
 
 			.tl-line {
 				position: absolute;
@@ -101,13 +101,12 @@
 			position: relative;
 		}
 
-		.tl-lines {
+		.tl-group {
 			position: absolute;
 			left: 0;
 			right: 0;
-			top: 0;
-			bottom: 0;
-			opacity: 0.5;
+			border-top: 5px solid #666;
+			border-bottom: 5px solid #666;
 
 			.tl-line {
 				position: absolute;
@@ -117,15 +116,6 @@
 				border-bottom: 5px solid blue;
 				background: white;
 			}
-		}
-
-		.tl-ranges {
-			position: absolute;
-			left: 0;
-			bottom: 0; 
-			right: 0;
-			top: 0;
-			opacity: 0.5;
 
 			.tl-range {
 				position: absolute;
@@ -134,15 +124,8 @@
 				border-left: 5px solid red;
 				border-right: 5px solid green;
 				background: white;
+				opacity: 0.5;
 			}
-		}
-
-		.tl-items {
-			position: absolute;
-			left: 0;
-			bottom: 0; 
-			right: 0;
-			top: 0;
 
 			.tl-item {
 				position: absolute;

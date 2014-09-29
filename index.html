@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <title>title</title>
         <style>
-        	html {background:#000;}
+        	html, body {background:#348;}
 
         	.mCSB_container {margin:0 !important; padding:0 !important;}
         	.mCSB_container_wrapper {margin:0 !important;}
@@ -22,7 +22,6 @@
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
-    	<br><br><br>
     	<div id="test"></div>
     	<script>
     		$(function(){
@@ -41,16 +40,26 @@
 	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix()
 	    				}
 	    			],
+	    			groups: [
+	    				{name: 'Group 1', height: 100},
+	    				{name: 'Group 2', height: 300}
+	    			],
 	    			lines: [
-	    				{name: 'Line 1'},
-	    				{name: 'Line 2'},
-	    				{name: 'Line 3'},
-	    				{name: 'Line 4'},
-	    				{name: 'Line 5'},
-	    				{name: 'Line 6'},
-	    				{name: 'Line 7'},
-	    				{name: 'Line 8'},
-	    				{name: 'Line 9'}
+	    				{name: 'Line 1A', group: 'Group 1'},
+	    				{name: 'Line 2A', group: 'Group 1'},
+	    				{name: 'Line 3A', group: 'Group 1'},
+	    				{name: 'Line 4A', group: 'Group 1'},
+	    				{name: 'Line 5A', group: 'Group 1'},
+	    				{name: 'Line 6A', group: 'Group 1'},
+	    				{name: 'Line 1B', group: 'Group 2'},
+	    				{name: 'Line 2B', group: 'Group 2'},
+	    				{name: 'Line 3B', group: 'Group 2'},
+	    				{name: 'Line 4B', group: 'Group 2'},
+	    				{name: 'Line 5B', group: 'Group 2'},
+	    				{name: 'Line 6B', group: 'Group 2'},
+	    				{name: 'Line 7B', group: 'Group 2'},
+	    				{name: 'Line 8B', group: 'Group 2'},
+	    				{name: 'Line 9B', group: 'Group 2'}
 	    			],
 	    			scale: 24*3600 / 150, // sec/px
 	    			ruler: {
@@ -61,7 +70,7 @@
 	    		}, {
 	    			items: [
 	    				{
-	    					line: 'Line 1',
+	    					line: 'Line 1A',
 	    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					text: 'Item 1'

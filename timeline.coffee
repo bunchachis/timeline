@@ -11,6 +11,9 @@ class Timeline
 		@ranges = []
 		@addRange range for range in @config.ranges
 
+		@groups = []
+		@addGroup group for group in @config.groups
+
 		@lines = []
 		@addLine line for line in @config.lines
 
@@ -24,6 +27,15 @@ class Timeline
 		@ranges.push range
 		@ranges = @ranges.sort (a, b)->
 			a.from - b.from
+
+	addGroup: (group)->
+		for group2 in @groups
+			if group2.name is group.name
+				throw 'Can\'t add group with same name as existing one has'
+
+		@groups.push group
+		@groups = @groups.sort (a, b)->
+			(a.order ? 0) - (b. order? 0)
 
 	addLine: (line)->
 		for line2 in @lines
@@ -55,6 +67,11 @@ class Timeline
 			extraOffset: 
 				before: 5
 				after: 15
+		group:
+			height: 500
+			extraOffset:
+				before: 20
+				after: 20
 		line:
 			height: 50
 			extraOffset:
@@ -73,9 +90,12 @@ class Timeline
 		$element.data 'scroll-inner', $inner
 
 		config =
+			theme: 'dark-2'
+			autoHideScrollbar: true
 			axis: axis
 			scrollInertia: 0
-			mouseWheel: {}
+			mouseWheel:
+				scrollAmount: 30
 			callbacks: {}
 
 		config.mouseWheel.axis = 'x' if axis is 'xy'
@@ -84,15 +104,16 @@ class Timeline
 			config.callbacks.whileScrolling = ->
 				for pair in pairs
 					position = {}
-					position.x = @mcs.left + 'px' if pair.axis.indexOf 'x' > -1
-					position.y = @mcs.top + 'px' if pair.axis.indexOf 'y' > -1
+					position.x = @mcs.left + 'px' if pair.axis.indexOf('x') > -1
+					position.y = @mcs.top + 'px' if pair.axis.indexOf('y') > -1
 
-					$target = pair.getTarget()
-					if $target.length
-						$target.mCustomScrollbar 'scrollTo', position,
-							scrollInertia: 0
-							timeout: 0
-							callbacks: false
+					$targets = pair.getTarget()
+					if $targets.length
+						$.each $targets, ->
+							$(@).mCustomScrollbar 'scrollTo', position,
+								scrollInertia: 0
+								timeout: 0
+								callbacks: false
 
 		$element.mCustomScrollbar config
 
@@ -112,7 +133,7 @@ class Timeline
 
 	buildRuler: ->
 		@$ruler = @addDom 'ruler', @$root
-		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => @$field}]
+		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$fieldDom for group in @groups}]
 		@placeRulerInner()
 		@buildRulerRanges()
 		@buildRulerDashes()
@@ -205,23 +226,51 @@ class Timeline
 
 	buildSidebar: ->
 		@$sidebar = @addDom 'sidebar', @$root
-		@scrollize @$sidebar, 'y', [{axis: 'y', getTarget: => @$field}]
-		@placeSidebarInner()
-		@buildSidebarLines()
+		@buildSidebarGroups()
 
-	placeSidebarInner: ->
+	buildSidebarGroups: ->
+		@buildSidebarGroup group for group in @groups
+
+	buildSidebarGroup: (group)->
+		group.$sidebarDom = @addDom 'group', @$sidebar
+		@scrollize group.$sidebarDom, 'y', [{axis: 'y', getTarget: => group.$fieldDom}]
+		@placeSidebarGroup group
+		@buildSidebarLines group
+
+	placeSidebarGroup: (group)->
+		group.$sidebarDom.css
+			top : @getGroupVerticalOffset group
+			height: group.height
 		sum = 0
-		sum += @getLineOuterHeight line for line in @lines
-		@getScrollContainer(@$sidebar).css
+		sum += @getLineOuterHeight line for line in @getGroupLines group
+		@getScrollContainer(group.$sidebarDom).css
 			height: sum
-		@$sidebar.mCustomScrollbar 'update'
+		group.$sidebarDom.mCustomScrollbar 'update'
 
-	buildSidebarLines: ->
-		@$sidebarLines = @addDom 'lines', @$sidebar
-		@buildSidebarLine line for line in @lines
+	getGroupVerticalOffset: (group)->
+		sum = 0
+		for group2 in @groups
+			break if group2.name is group.name
+			sum += @getGroupOuterHeight group2
+		sum
+
+	getGroupInnerHeight: (group)->
+		group.height ? @config.group.height
+
+	getGroupOuterHeight: (group)->
+		@getGroupInnerHeight(group) +
+		@config.group.extraOffset.before +
+		@config.group.extraOffset.after
+
+	getGroupLines: (group)->
+		line for line in @lines when line.group is group.name
+
+	buildSidebarLines: (group)->
+		@buildSidebarLine line for line in @getGroupLines group
 
 	buildSidebarLine: (line)->
-		$line = @addDom 'line', @$sidebarLines
+		group = @getGroupByName line.group
+		$line = @addDom 'line', group.$sidebarDom
 		render = line.sidebarRender ? @config.sidebar.lines.render
 		$line.html render line
 		@placeSidebarLine $line, line
@@ -243,7 +292,7 @@ class Timeline
 		sum = 0
 		for line2 in @lines
 			break if line2.name is line.name
-			sum += @getLineOuterHeight line2
+			sum += @getLineOuterHeight line2 if line2.group is line.group
 		sum
 
 	getLineInnerHeight: (line)->
@@ -259,13 +308,43 @@ class Timeline
 			if line.name is lineName
 				return line
 
+	getGroupByName: (groupName)->
+		for group in @groups
+			if group.name is groupName
+				return group
+
 	buildField: ->
 		@$field = @addDom 'field', @$root
-		@scrollize @$field, 'xy', [{axis: 'x', getTarget: => @$ruler}, {axis: 'y', getTarget: => @$sidebar}]
-		@placeFieldInner()
-		@buildFieldLines()
-		@buildFieldRanges()
-		@buildFieldItems()
+		@buildFieldGroups()
+
+	buildFieldGroups: ->
+		@buildFieldGroup group for group in @groups
+
+	buildFieldGroup: (group)->
+		group.$fieldDom = @addDom 'group', @$field
+		@scrollize group.$fieldDom, 'xy', [
+			{axis: 'x', getTarget: => [@$ruler].concat(group2.$fieldDom for group2 in @groups when group2.name isnt group.name)},
+			{axis: 'y', getTarget: => group.$sidebarDom}
+		]
+		@placeFieldGroup group
+		@buildFieldLines group
+		@buildFieldRanges group
+		@buildFieldItems group
+
+	placeFieldGroup: (group)->
+		group.$fieldDom.css
+			top : @getGroupVerticalOffset group
+			height: group.height
+
+		xSum = 0
+		xSum += @getRangeOuterWidth range for range in @ranges
+		ySum = 0
+		ySum += @getLineOuterHeight line for line in @getGroupLines group
+		@getScrollContainer(group.$fieldDom).css
+			width: xSum
+			height: ySum
+		group.$fieldDom.mCustomScrollbar 'update'
+		
 
 	placeFieldInner: ->
 		xSum = 0
@@ -277,12 +356,12 @@ class Timeline
 			height: ySum
 		@$field.mCustomScrollbar 'update'
 
-	buildFieldLines: ->
-		@$fieldLines = @addDom 'lines', @$field
-		@buildFieldLine line for line in @lines
+	buildFieldLines: (group)->
+		@buildFieldLine line for line in @getGroupLines group
 
 	buildFieldLine: (line)->
-		$line = @addDom 'line', @$fieldLines
+		group = @getGroupByName line.group
+		$line = @addDom 'line', group.$fieldDom
 		render = line.fieldRender ? @config.field.lines.render
 		$line.html render line
 		@placeFieldLine $line, line
@@ -295,12 +374,11 @@ class Timeline
 			top: @getVerticalOffset(line.name) - @config.line.extraOffset.before
 			height: @getLineInnerHeight line
 
-	buildFieldRanges: ->
-		@$fieldRanges = @addDom 'ranges', @$field
-		@buildFieldRange range for range in @ranges
+	buildFieldRanges: (group)->
+		@buildFieldRange range, group for range in @ranges
 
-	buildFieldRange: (range)->
-		$range = @addDom 'range', @$fieldRanges
+	buildFieldRange: (range, group)->
+		$range = @addDom 'range', group.$fieldDom
 		render = range.fieldRender ? @config.field.ranges.render
 		$range.html render range
 		@placeFieldRange $range, range
@@ -313,12 +391,12 @@ class Timeline
 			left: @getOffset(range.from) - @config.range.extraOffset.before
 			width: @getRangeInnerWidth(range)
 
-	buildFieldItems: ->
-		@$fieldItems = @addDom 'items', @$field
-		@buildFieldItem item for item in @data.items
+	buildFieldItems: (group)->
+		@buildFieldItem item for item in @data.items when @getLineByName(item.line).group is group.name
 
 	buildFieldItem: (item)->
-		$item = @addDom 'item', @$fieldItems
+		group = @getGroupByName @getLineByName(item.line).group
+		$item = @addDom 'item', group.$fieldDom
 		render = item.render ? @config.field.items.render
 		$item.html render item
 		@placeFieldItem $item, item
