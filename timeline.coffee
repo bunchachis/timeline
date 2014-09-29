@@ -17,6 +17,9 @@ class Timeline
 		@lines = []
 		@addLine line for line in @config.lines
 
+		@dashRules = []
+		@addDashRule rule for rule in @config.dashRules
+
 		@build()
 
 	addRange: (range)->
@@ -46,10 +49,18 @@ class Timeline
 		@lines = @lines.sort (a, b)->
 			(a.order ? 0) - (b. order? 0)
 
+	addDashRule: (rule)->
+		for rule2 in @dashRules
+			if rule2.name is rule.name
+				throw 'Can\'t add dash rule with same name as existing one has'
+
+		@dashRules.push rule
+		@dashRules = @dashRules.sort (a, b)->
+			(a.order ? 0) - (b. order? 0)
+
 	getDefaultConfig: ->
 		ruler:
 			position: 'top'
-			dashes: []
 			ranges:
 				render: $.proxy @, 'renderRulerRange'
 		sidebar:
@@ -77,7 +88,11 @@ class Timeline
 			extraOffset:
 				before: 5
 				after: 10	
+		scale: 1
+		dashRules: []
 		ranges: []
+		groups: []
+		lines: []
 
 	addDom: (name, $container)->
 		$element = $('<div />').addClass "tl-#{name}"
@@ -146,11 +161,10 @@ class Timeline
 		@$ruler.mCustomScrollbar 'update'
 
 	buildRulerRanges: ->
-		@$rulerRanges = @addDom 'ranges', @$ruler
 		@buildRulerRange range for range in @ranges
 
 	buildRulerRange: (range)->
-		$range = @addDom 'range', @$rulerRanges
+		$range = @addDom 'range', @$ruler
 		render = range.rulerRender ? @config.ruler.ranges.render
 		$range.html render range
 		@placeRulerRange $range, range
@@ -166,19 +180,17 @@ class Timeline
 			width: @getRangeInnerWidth(range)
 
 	buildRulerDashes: ->
-		@$rulerDashes = @addDom 'dashes', @$ruler
-		dashes = @calcRulerDashes()
-		@buildRulerDash dash for dash in dashes
+		@buildRulerDash dash for dash in @calcDashes()
 
 	buildRulerDash: (dash)->
-		$dash = @addDom 'dash', @$rulerDashes
-		$dash.addClass dash.class if dash.class
-		@placeRulerDash $dash, dash
+		dash.$rulerDom = @addDom 'dash', @$ruler
+		dash.$rulerDom.addClass "named-#{dash.rule.name}"
+		@placeRulerDash dash
 
-	placeRulerDash: ($dash, dash)->
+	placeRulerDash: (dash)->
 		offset = @getOffset dash.time
 		if offset?
-			$dash.css {left: offset}
+			dash.$rulerDom.css left: offset
 
 	getOffset: (time)->	
 		range = @getRangeByTime time
@@ -208,19 +220,25 @@ class Timeline
 			if range.from <= time < range.to
 				return range
 
-	calcRulerDashes: ->
+	calcDashes: ->
 		dashes = []
-		for rule in @config.ruler.dashes 
+		for dashRule in @dashRules 
 			for range in @ranges
-				if rule.type is 'every'
-					dashes = dashes.concat @calcRulerDashesEvery(range, rule)
+				if dashRule.type is 'every'
+					dashes = dashes.concat @calcDashesEvery(range, dashRule)
+		
+		map = {}
+		map[dash.time] = dash for dash in dashes when !map[dash.time]?
+
+		dashes = []
+		dashes.push dash for time, dash of map
 		dashes
 
-	calcRulerDashesEvery: (range, rule)->
+	calcDashesEvery: (range, rule)->
 		dashes = []
 		time = range.from
 		while time < range.to
-			dashes.push {time, class: rule.class}
+			dashes.push {time, rule}
 			time += rule.step
 		dashes
 
@@ -329,6 +347,7 @@ class Timeline
 		@placeFieldGroup group
 		@buildFieldLines group
 		@buildFieldRanges group
+		@buildFieldDashes group
 		@buildFieldItems group
 
 	placeFieldGroup: (group)->
@@ -390,6 +409,19 @@ class Timeline
 		$range.css
 			left: @getOffset(range.from) - @config.range.extraOffset.before
 			width: @getRangeInnerWidth(range)
+
+	buildFieldDashes: (group)->
+		@buildFieldDash dash, group for dash in @calcDashes()
+
+	buildFieldDash: (dash, group)->
+		dash.$fieldDom = @addDom 'dash', group.$fieldDom
+		dash.$fieldDom.addClass "named-#{dash.rule.name}"
+		@placeFieldDash dash
+
+	placeFieldDash: (dash)->
+		offset = @getOffset dash.time
+		if offset?
+			dash.$fieldDom.css left: offset
 
 	buildFieldItems: (group)->
 		@buildFieldItem item for item in @data.items when @getLineByName(item.line).group is group.name

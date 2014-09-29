@@ -41,8 +41,8 @@
 	    				}
 	    			],
 	    			groups: [
-	    				{name: 'Group 1', height: 100},
-	    				{name: 'Group 2', height: 300}
+	    				{name: 'Group 1', height: 150},
+	    				{name: 'Group 2', height: 350}
 	    			],
 	    			lines: [
 	    				{name: 'Line 1A', group: 'Group 1'},
@@ -61,12 +61,12 @@
 	    				{name: 'Line 8B', group: 'Group 2'},
 	    				{name: 'Line 9B', group: 'Group 2'}
 	    			],
-	    			scale: 24*3600 / 150, // sec/px
-	    			ruler: {
-	    				dashes: [
-    						{type: 'every', step: 24*3600}
-	    				]
-	    			}
+	    			scale: 24*3600 / 200, // sec/px
+					dashRules: [
+						{name: '24-hour', type: 'every', step: 24*3600},
+						{name: '12-hour', type: 'every', step: 12*3600},
+						{name: '6-hour', type: 'every', step: 6*3600},
+					]
 	    		}, {
 	    			items: [
 	    				{
@@ -74,6 +74,12 @@
 	    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					text: 'Item 1'
+	    				},
+	    				{
+	    					line: 'Line 3A',
+	    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+	    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+	    					text: 'Item 2'
 	    				}
 	    			]
 	    		});
