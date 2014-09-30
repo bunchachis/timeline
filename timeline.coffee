@@ -61,7 +61,7 @@ class Line
 
 	getVerticalOffset: ->
 		@timeline.arraySum(
-			for elseLine in @timeline.lines when elseLine.group is @group
+			for elseLine in @timeline.lines when elseLine.groupId is @groupId
 				break if elseLine.id is @id
 				elseLine.getOuterHeight() 
 		)
@@ -122,7 +122,7 @@ class Timeline
 
 		@groups.push new Group group, @
 		@groups = @groups.sort (a, b)->
-			(a.order ? 0) - (b. order? 0)
+			(a.order ? 0) - (b.order ? 0)
 
 	addLine: (line)->
 		for elseLine in @lines
@@ -131,7 +131,7 @@ class Timeline
 
 		@lines.push new Line line, @
 		@lines = @lines.sort (a, b)->
-			(a.order ? 0) - (b. order? 0)
+			(a.order ? 0) - (b.order ? 0)
 
 	addDashRule: (rule)->
 		for elseRule in @dashRules
@@ -140,7 +140,7 @@ class Timeline
 
 		@dashRules.push rule
 		@dashRules = @dashRules.sort (a, b)->
-			(a.order ? 0) - (b. order? 0)
+			(a.order ? 0) - (b.order ? 0)
 
 	getDefaultConfig: ->
 		ruler:

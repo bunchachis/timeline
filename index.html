@@ -25,7 +25,7 @@
     	<div id="test"></div>
     	<script>
     		$(function(){
-	    		new Timeline('#test', {
+	    		window.tl = new Timeline('#test', {
 	    			ranges: [
 	    				{
 	    					from: moment('1.09.2014', 'DD.MM.YYYY').unix(),
@@ -45,12 +45,12 @@
 	    				{id: 'Group 2', height: 350}
 	    			],
 	    			lines: [
-	    				{id: 'Line 1A', groupId: 'Group 1'},
-	    				{id: 'Line 2A', groupId: 'Group 1'},
-	    				{id: 'Line 3A', groupId: 'Group 1'},
-	    				{id: 'Line 4A', groupId: 'Group 1'},
-	    				{id: 'Line 5A', groupId: 'Group 1'},
-	    				{id: 'Line 6A', groupId: 'Group 1'},
+	    				{id: 'Line 1A', groupId: 'Group 1', order:1},
+	    				{id: 'Line 2A', groupId: 'Group 1', order:2},
+	    				{id: 'Line 3A', groupId: 'Group 1', order:3},
+	    				{id: 'Line 4A', groupId: 'Group 1', order:4},
+	    				{id: 'Line 5A', groupId: 'Group 1', order:5},
+	    				{id: 'Line 6A', groupId: 'Group 1', order:6},
 	    				{id: 'Line 1B', groupId: 'Group 2'},
 	    				{id: 'Line 2B', groupId: 'Group 2'},
 	    				{id: 'Line 3B', groupId: 'Group 2'},
