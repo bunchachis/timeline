@@ -8,12 +8,12 @@ class Group
 		@timeline = timeline
 
 	getLines: ->
-		line for line in @timeline.lines when line.group is @name
+		line for line in @timeline.lines when line.groupId is @id
 
 	getVerticalOffset: ->
 		sum = 0
 		for elseGroup in @timeline.groups
-			break if elseGroup.name is @name
+			break if elseGroup.id is @id
 			sum += elseGroup.getOuterHeight()
 		sum
 
@@ -62,7 +62,7 @@ class Line
 	getVerticalOffset: ->
 		sum = 0
 		for elseLine in @timeline.lines
-			break if elseLine.name is @name
+			break if elseLine.id is @id
 			sum += elseLine.getOuterHeight() if elseLine.group is @group
 		sum
 
@@ -78,7 +78,7 @@ class Line
 		@getExtraOffsetAfter()
 
 	getGroup: ->
-		@timeline.getGroupByName @.group	
+		@timeline.getGroupById @.groupId
 
 	getExtraOffsetBefore: ->
 		@extraOffsetBefore ? @timeline.config.line.extraOffset.before
@@ -107,8 +107,8 @@ class Timeline
 		@build()
 
 	addRange: (range)->
-		for range2 in @ranges
-			if range.from < range2.to and range.to > range2.from 
+		for elseRange in @ranges
+			if range.from < elseRange.to and range.to > elseRange.from 
 				throw 'Can\'t add range overlapping existing one'
 
 		@ranges.push new Range range, @
@@ -116,27 +116,27 @@ class Timeline
 			a.from - b.from
 
 	addGroup: (group)->
-		for group2 in @groups
-			if group2.name is group.name
-				throw 'Can\'t add group with same name as existing one has'
+		for elseGroup in @groups
+			if elseGroup.id is group.id
+				throw 'Can\'t add group with same id as existing one has'
 
 		@groups.push new Group group, @
 		@groups = @groups.sort (a, b)->
 			(a.order ? 0) - (b. order? 0)
 
 	addLine: (line)->
-		for line2 in @lines
-			if line2.name is line.name
-				throw 'Can\'t add line with same name as existing one has'
+		for elseLine in @lines
+			if elseLine.id is line.id
+				throw 'Can\'t add line with same id as existing one has'
 
 		@lines.push new Line line, @
 		@lines = @lines.sort (a, b)->
 			(a.order ? 0) - (b. order? 0)
 
 	addDashRule: (rule)->
-		for rule2 in @dashRules
-			if rule2.name is rule.name
-				throw 'Can\'t add dash rule with same name as existing one has'
+		for elseRule in @dashRules
+			if elseRule.id is rule.id
+				throw 'Can\'t add dash rule with same id as existing one has'
 
 		@dashRules.push rule
 		@dashRules = @dashRules.sort (a, b)->
@@ -268,7 +268,7 @@ class Timeline
 
 	buildRulerDash: (dash)->
 		dash.$rulerDom = @addDom 'dash', @$ruler
-		dash.$rulerDom.addClass "named-#{dash.rule.name}"
+		dash.$rulerDom.addClass "id-#{dash.rule.id}"
 		@placeRulerDash dash
 
 	placeRulerDash: (dash)->
@@ -341,21 +341,21 @@ class Timeline
 		@placeSidebarLine $line, line
 
 	renderSidebarLine: (line)->
-		@addDom('heading').text line.name
+		@addDom('heading').text line.id
 
 	placeSidebarLine: ($line, line)->
 		$line.css
 			top: line.getVerticalOffset()
 			height: line.getInnerHeight()
 
-	getLineByName: (lineName)->
+	getLineById: (lineId)->
 		for line in @lines
-			if line.name is lineName
+			if line.id is lineId
 				return line
 
-	getGroupByName: (groupName)->
+	getGroupById: (groupId)->
 		for group in @groups
-			if group.name is groupName
+			if group.id is groupId
 				return group
 
 	buildField: ->
@@ -368,7 +368,7 @@ class Timeline
 	buildFieldGroup: (group)->
 		group.$fieldDom = @addDom 'group', @$field
 		@scrollize group.$fieldDom, 'xy', [
-			{axis: 'x', getTarget: => [@$ruler].concat(group2.$fieldDom for group2 in @groups when group2.name isnt group.name)},
+			{axis: 'x', getTarget: => [@$ruler].concat(elseGroup.$fieldDom for elseGroup in @groups when elseGroup.id isnt group.id)},
 			{axis: 'y', getTarget: => group.$sidebarDom}
 		]
 		@placeFieldGroup group
@@ -430,7 +430,7 @@ class Timeline
 
 	buildFieldDash: (dash, group)->
 		dash.$fieldDom = @addDom 'dash', group.$fieldDom
-		dash.$fieldDom.addClass "named-#{dash.rule.name}"
+		dash.$fieldDom.addClass "id-#{dash.rule.id}"
 		@placeFieldDash dash
 
 	placeFieldDash: (dash)->
@@ -439,10 +439,10 @@ class Timeline
 			dash.$fieldDom.css left: offset
 
 	buildFieldItems: (group)->
-		@buildFieldItem item for item in @data.items when @getLineByName(item.line).group is group.name
+		@buildFieldItem item for item in @data.items when @getLineById(item.lineId).groupId is group.id
 
 	buildFieldItem: (item)->
-		group = @getLineByName(item.line).getGroup()
+		group = @getLineById(item.lineId).getGroup()
 		$item = @addDom 'item', group.$fieldDom
 		render = item.render ? @config.field.items.render
 		$item.html render item
@@ -452,11 +452,11 @@ class Timeline
 		item.html ? @addDom('text').text(item.text)
 
 	placeFieldItem: ($item, item)->
-		line = @getLineByName item.line
+		line = @getLineById item.lineId
 		offset = @getOffset item.from
 		$item.css
 			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
-			height: @getLineByName(item.line).getInnerHeight()
+			height: @getLineById(item.lineId).getInnerHeight()
 			left: offset
 			width: @getOffset(item.to) - offset
 

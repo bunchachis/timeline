@@ -41,42 +41,42 @@
 	    				}
 	    			],
 	    			groups: [
-	    				{name: 'Group 1', height: 150},
-	    				{name: 'Group 2', height: 350}
+	    				{id: 'Group 1', height: 150},
+	    				{id: 'Group 2', height: 350}
 	    			],
 	    			lines: [
-	    				{name: 'Line 1A', group: 'Group 1'},
-	    				{name: 'Line 2A', group: 'Group 1'},
-	    				{name: 'Line 3A', group: 'Group 1'},
-	    				{name: 'Line 4A', group: 'Group 1'},
-	    				{name: 'Line 5A', group: 'Group 1'},
-	    				{name: 'Line 6A', group: 'Group 1'},
-	    				{name: 'Line 1B', group: 'Group 2'},
-	    				{name: 'Line 2B', group: 'Group 2'},
-	    				{name: 'Line 3B', group: 'Group 2'},
-	    				{name: 'Line 4B', group: 'Group 2'},
-	    				{name: 'Line 5B', group: 'Group 2'},
-	    				{name: 'Line 6B', group: 'Group 2'},
-	    				{name: 'Line 7B', group: 'Group 2'},
-	    				{name: 'Line 8B', group: 'Group 2'},
-	    				{name: 'Line 9B', group: 'Group 2'}
+	    				{id: 'Line 1A', groupId: 'Group 1'},
+	    				{id: 'Line 2A', groupId: 'Group 1'},
+	    				{id: 'Line 3A', groupId: 'Group 1'},
+	    				{id: 'Line 4A', groupId: 'Group 1'},
+	    				{id: 'Line 5A', groupId: 'Group 1'},
+	    				{id: 'Line 6A', groupId: 'Group 1'},
+	    				{id: 'Line 1B', groupId: 'Group 2'},
+	    				{id: 'Line 2B', groupId: 'Group 2'},
+	    				{id: 'Line 3B', groupId: 'Group 2'},
+	    				{id: 'Line 4B', groupId: 'Group 2'},
+	    				{id: 'Line 5B', groupId: 'Group 2'},
+	    				{id: 'Line 6B', groupId: 'Group 2'},
+	    				{id: 'Line 7B', groupId: 'Group 2'},
+	    				{id: 'Line 8B', groupId: 'Group 2'},
+	    				{id: 'Line 9B', groupId: 'Group 2'}
 	    			],
 	    			scale: 24*3600 / 200, // sec/px
 					dashRules: [
-						{name: '24-hour', type: 'every', step: 24*3600},
-						{name: '12-hour', type: 'every', step: 12*3600},
-						{name: '6-hour', type: 'every', step: 6*3600},
+						{id: '24-hour', type: 'every', step: 24*3600},
+						{id: '12-hour', type: 'every', step: 12*3600},
+						{id: '6-hour', type: 'every', step: 6*3600},
 					]
 	    		}, {
 	    			items: [
 	    				{
-	    					line: 'Line 1A',
+	    					lineId: 'Line 1A',
 	    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					text: 'Item 1'
 	    				},
 	    				{
-	    					line: 'Line 3A',
+	    					lineId: 'Line 3A',
 	    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
 	    					text: 'Item 2'
