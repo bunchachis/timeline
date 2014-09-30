@@ -11,11 +11,11 @@ class Group
 		line for line in @timeline.lines when line.groupId is @id
 
 	getVerticalOffset: ->
-		sum = 0
-		for elseGroup in @timeline.groups
-			break if elseGroup.id is @id
-			sum += elseGroup.getOuterHeight()
-		sum
+		@timeline.arraySum(
+			for elseGroup in @timeline.groups
+				break if elseGroup.id is @id
+				elseGroup.getOuterHeight() 
+		)
 
 	getInnerHeight: ->
 		@height ? @timeline.config.group.height
@@ -31,10 +31,10 @@ class Range
 		@timeline = timeline
 
 	getOffset: ->
-		sum = 0
-		for elseRange in @timeline.ranges when elseRange.from < @from
-			sum += elseRange.getOuterWidth()
-		sum
+		@timeline.arraySum(
+			for elseRange in @timeline.ranges when elseRange.from < @from
+				elseRange.getOuterWidth() 
+		)
 
 	getInternalOffset: (time)->
 		@getExtraOffsetBefore() +
@@ -60,11 +60,11 @@ class Line
 		@timeline = timeline
 
 	getVerticalOffset: ->
-		sum = 0
-		for elseLine in @timeline.lines
-			break if elseLine.id is @id
-			sum += elseLine.getOuterHeight() if elseLine.group is @group
-		sum
+		@timeline.arraySum(
+			for elseLine in @timeline.lines when elseLine.group is @group
+				break if elseLine.id is @id
+				elseLine.getOuterHeight() 
+		)
 
 	getInternalVerticalOffset: ->
 		@getExtraOffsetBefore()	
@@ -224,6 +224,18 @@ class Timeline
 		else
 			$element
 
+	setInnerSize: ($element, size)->
+		css = {}
+		css.width = size.x if size.x
+		css.height = size.y if size.y
+		@getScrollContainer($element).css css
+		$element.mCustomScrollbar 'update'
+
+	arraySum: (array)->
+		sum = 0
+		sum += value for value in array
+		sum
+
 	build: ->
 		@$root = @addDom 'root', @$container
 		@buildSidebar()
@@ -233,16 +245,13 @@ class Timeline
 	buildRuler: ->
 		@$ruler = @addDom 'ruler', @$root
 		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$fieldDom for group in @groups}]
-		@placeRulerInner()
+		@placeRuler()
 		@buildRulerRanges()
 		@buildRulerDashes()
 
-	placeRulerInner: ->
-		sum = 0
-		sum += range.getOuterWidth() for range in @ranges
-		@getScrollContainer(@$ruler).css
-			width: sum
-		@$ruler.mCustomScrollbar 'update'
+	placeRuler: ->
+		@setInnerSize @$ruler, 
+			x: @arraySum(range.getOuterWidth() for range in @ranges)
 
 	buildRulerRanges: ->
 		@buildRulerRange range for range in @ranges
@@ -325,11 +334,9 @@ class Timeline
 		group.$sidebarDom.css
 			top : group.getVerticalOffset()
 			height: group.height
-		sum = 0
-		sum += line.getOuterHeight() for line in group.getLines()
-		@getScrollContainer(group.$sidebarDom).css
-			height: sum
-		group.$sidebarDom.mCustomScrollbar 'update'
+
+		@setInnerSize group.$sidebarDom,
+			y: @arraySum(line.getOuterHeight() for line in group.getLines())
 
 	buildSidebarLines: (group)->
 		@buildSidebarLine line for line in group.getLines()
@@ -382,14 +389,9 @@ class Timeline
 			top : group.getVerticalOffset()
 			height: group.height
 
-		xSum = 0
-		xSum += range.getOuterWidth() for range in @ranges
-		ySum = 0
-		ySum += line.getOuterHeight() for line in group.getLines()
-		@getScrollContainer(group.$fieldDom).css
-			width: xSum
-			height: ySum
-		group.$fieldDom.mCustomScrollbar 'update'
+		@setInnerSize group.$fieldDom, 
+			x: @arraySum(range.getOuterWidth() for range in @ranges)
+			y: @arraySum(line.getOuterHeight() for line in group.getLines())
 
 	buildFieldLines: (group)->
 		@buildFieldLine line for line in group.getLines()
