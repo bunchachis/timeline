@@ -2,6 +2,90 @@ log = (x)-> console.log(x)
 
 # All ranges is [from, to)
 
+class Group
+	constructor: (group, timeline)->
+		$.extend @, group
+		@timeline = timeline
+
+	getLines: ->
+		line for line in @timeline.lines when line.group is @name
+
+	getVerticalOffset: ->
+		sum = 0
+		for elseGroup in @timeline.groups
+			break if elseGroup.name is @name
+			sum += elseGroup.getOuterHeight()
+		sum
+
+	getInnerHeight: ->
+		@height ? @timeline.config.group.height
+
+	getOuterHeight: ->
+		@getInnerHeight() +
+		@timeline.config.group.extraOffset.before +
+		@timeline.config.group.extraOffset.after
+
+class Range
+	constructor: (range, timeline)->
+		$.extend @, range
+		@timeline = timeline
+
+	getOffset: ->
+		sum = 0
+		for elseRange in @timeline.ranges when elseRange.from < @from
+			sum += elseRange.getOuterWidth()
+		sum
+
+	getInternalOffset: (time)->
+		@getExtraOffsetBefore() +
+		Math.ceil(time / @timeline.config.scale) - Math.ceil(@from / @timeline.config.scale)
+
+	getInnerWidth: ->
+		Math.ceil(@to / @timeline.config.scale) - Math.ceil(@from / @timeline.config.scale)
+
+	getOuterWidth: ->
+		@getInnerWidth() +
+		@getExtraOffsetBefore() +
+		@getExtraOffsetAfter()
+
+	getExtraOffsetBefore: ->
+		@extraOffsetBefore ? @timeline.config.range.extraOffset.before
+
+	getExtraOffsetAfter: ->
+		@extraOffsetAfter ? @timeline.config.range.extraOffset.after
+
+class Line
+	constructor: (line, timeline)->
+		$.extend @, line
+		@timeline = timeline
+
+	getVerticalOffset: ->
+		sum = 0
+		for elseLine in @timeline.lines
+			break if elseLine.name is @name
+			sum += elseLine.getOuterHeight() if elseLine.group is @group
+		sum
+
+	getInternalVerticalOffset: ->
+		@getExtraOffsetBefore()	
+
+	getInnerHeight: ->
+		@height ? @timeline.config.line.height
+
+	getOuterHeight: ->
+		@getInnerHeight() +
+		@getExtraOffsetBefore() +
+		@getExtraOffsetAfter()
+
+	getGroup: ->
+		@timeline.getGroupByName @.group	
+
+	getExtraOffsetBefore: ->
+		@extraOffsetBefore ? @timeline.config.line.extraOffset.before
+
+	getExtraOffsetAfter: ->
+		@extraOffsetAfter ? @timeline.config.line.extraOffset.after
+
 class Timeline
 	constructor: (container, config = {}, data = {})->
 		@$container = $ container
@@ -27,7 +111,7 @@ class Timeline
 			if range.from < range2.to and range.to > range2.from 
 				throw 'Can\'t add range overlapping existing one'
 
-		@ranges.push range
+		@ranges.push new Range range, @
 		@ranges = @ranges.sort (a, b)->
 			a.from - b.from
 
@@ -36,7 +120,7 @@ class Timeline
 			if group2.name is group.name
 				throw 'Can\'t add group with same name as existing one has'
 
-		@groups.push group
+		@groups.push new Group group, @
 		@groups = @groups.sort (a, b)->
 			(a.order ? 0) - (b. order? 0)
 
@@ -45,7 +129,7 @@ class Timeline
 			if line2.name is line.name
 				throw 'Can\'t add line with same name as existing one has'
 
-		@lines.push line
+		@lines.push new Line line, @
 		@lines = @lines.sort (a, b)->
 			(a.order ? 0) - (b. order? 0)
 
@@ -155,7 +239,7 @@ class Timeline
 
 	placeRulerInner: ->
 		sum = 0
-		sum += @getRangeOuterWidth range for range in @ranges
+		sum += range.getOuterWidth() for range in @ranges
 		@getScrollContainer(@$ruler).css
 			width: sum
 		@$ruler.mCustomScrollbar 'update'
@@ -176,8 +260,8 @@ class Timeline
 
 	placeRulerRange: ($range, range)->
 		$range.css
-			left: @getOffset(range.from) - @config.range.extraOffset.before
-			width: @getRangeInnerWidth(range)
+			left: range.getOffset()
+			width: range.getInnerWidth()
 
 	buildRulerDashes: ->
 		@buildRulerDash dash for dash in @calcDashes()
@@ -195,25 +279,7 @@ class Timeline
 	getOffset: (time)->	
 		range = @getRangeByTime time
 		if range?
-			@getRangeOffset(range) + @getInRangeOffset(range, time)
-
-	getInRangeOffset: (range, time)->
-		Math.ceil((time - range.from) / @config.scale) +
-		@config.range.extraOffset.before
-
-	getRangeOffset: (range)->
-		sum = 0
-		for range2 in @ranges when range2.from < range.from
-			sum += @getRangeOuterWidth range2
-		sum
-
-	getRangeInnerWidth: (range)->
-		Math.ceil((range.to - range.from) / @config.scale)
-
-	getRangeOuterWidth: (range)->
-		@getRangeInnerWidth(range) +
-		@config.range.extraOffset.before +
-		@config.range.extraOffset.after
+			range.getOffset() + range.getInternalOffset(time)
 
 	getRangeByTime: (time)->
 		for range in @ranges
@@ -257,38 +323,19 @@ class Timeline
 
 	placeSidebarGroup: (group)->
 		group.$sidebarDom.css
-			top : @getGroupVerticalOffset group
+			top : group.getVerticalOffset()
 			height: group.height
 		sum = 0
-		sum += @getLineOuterHeight line for line in @getGroupLines group
+		sum += line.getOuterHeight() for line in group.getLines()
 		@getScrollContainer(group.$sidebarDom).css
 			height: sum
 		group.$sidebarDom.mCustomScrollbar 'update'
 
-	getGroupVerticalOffset: (group)->
-		sum = 0
-		for group2 in @groups
-			break if group2.name is group.name
-			sum += @getGroupOuterHeight group2
-		sum
-
-	getGroupInnerHeight: (group)->
-		group.height ? @config.group.height
-
-	getGroupOuterHeight: (group)->
-		@getGroupInnerHeight(group) +
-		@config.group.extraOffset.before +
-		@config.group.extraOffset.after
-
-	getGroupLines: (group)->
-		line for line in @lines when line.group is group.name
-
 	buildSidebarLines: (group)->
-		@buildSidebarLine line for line in @getGroupLines group
+		@buildSidebarLine line for line in group.getLines()
 
 	buildSidebarLine: (line)->
-		group = @getGroupByName line.group
-		$line = @addDom 'line', group.$sidebarDom
+		$line = @addDom 'line', line.getGroup().$sidebarDom
 		render = line.sidebarRender ? @config.sidebar.lines.render
 		$line.html render line
 		@placeSidebarLine $line, line
@@ -298,28 +345,8 @@ class Timeline
 
 	placeSidebarLine: ($line, line)->
 		$line.css
-			top: @getVerticalOffset(line.name) - @config.line.extraOffset.before
-			height: @getLineInnerHeight line
-
-	getVerticalOffset: (lineName)->	
-		line = @getLineByName lineName
-		if line?
-			@getLineVerticalOffset(line) + @config.line.extraOffset.before
-
-	getLineVerticalOffset: (line)->
-		sum = 0
-		for line2 in @lines
-			break if line2.name is line.name
-			sum += @getLineOuterHeight line2 if line2.group is line.group
-		sum
-
-	getLineInnerHeight: (line)->
-		line.height ? @config.line.height
-
-	getLineOuterHeight: (line)->
-		@getLineInnerHeight(line) +
-		@config.line.extraOffset.before +
-		@config.line.extraOffset.after
+			top: line.getVerticalOffset()
+			height: line.getInnerHeight()
 
 	getLineByName: (lineName)->
 		for line in @lines
@@ -352,35 +379,23 @@ class Timeline
 
 	placeFieldGroup: (group)->
 		group.$fieldDom.css
-			top : @getGroupVerticalOffset group
+			top : group.getVerticalOffset()
 			height: group.height
 
 		xSum = 0
-		xSum += @getRangeOuterWidth range for range in @ranges
+		xSum += range.getOuterWidth() for range in @ranges
 		ySum = 0
-		ySum += @getLineOuterHeight line for line in @getGroupLines group
+		ySum += line.getOuterHeight() for line in group.getLines()
 		@getScrollContainer(group.$fieldDom).css
 			width: xSum
 			height: ySum
 		group.$fieldDom.mCustomScrollbar 'update'
-		
-
-	placeFieldInner: ->
-		xSum = 0
-		xSum += @getRangeOuterWidth range for range in @ranges
-		ySum = 0
-		ySum += @getLineOuterHeight line for line in @lines
-		@getScrollContainer(@$field).css
-			width: xSum
-			height: ySum
-		@$field.mCustomScrollbar 'update'
 
 	buildFieldLines: (group)->
-		@buildFieldLine line for line in @getGroupLines group
+		@buildFieldLine line for line in group.getLines()
 
 	buildFieldLine: (line)->
-		group = @getGroupByName line.group
-		$line = @addDom 'line', group.$fieldDom
+		$line = @addDom 'line', line.getGroup().$fieldDom
 		render = line.fieldRender ? @config.field.lines.render
 		$line.html render line
 		@placeFieldLine $line, line
@@ -390,8 +405,8 @@ class Timeline
 
 	placeFieldLine: ($line, line)->
 		$line.css
-			top: @getVerticalOffset(line.name) - @config.line.extraOffset.before
-			height: @getLineInnerHeight line
+			top: line.getVerticalOffset()
+			height: line.getInnerHeight()
 
 	buildFieldRanges: (group)->
 		@buildFieldRange range, group for range in @ranges
@@ -407,8 +422,8 @@ class Timeline
 
 	placeFieldRange: ($range, range)->
 		$range.css
-			left: @getOffset(range.from) - @config.range.extraOffset.before
-			width: @getRangeInnerWidth(range)
+			left: range.getOffset()
+			width: range.getInnerWidth()
 
 	buildFieldDashes: (group)->
 		@buildFieldDash dash, group for dash in @calcDashes()
@@ -427,7 +442,7 @@ class Timeline
 		@buildFieldItem item for item in @data.items when @getLineByName(item.line).group is group.name
 
 	buildFieldItem: (item)->
-		group = @getGroupByName @getLineByName(item.line).group
+		group = @getLineByName(item.line).getGroup()
 		$item = @addDom 'item', group.$fieldDom
 		render = item.render ? @config.field.items.render
 		$item.html render item
@@ -437,10 +452,11 @@ class Timeline
 		item.html ? @addDom('text').text(item.text)
 
 	placeFieldItem: ($item, item)->
+		line = @getLineByName item.line
 		offset = @getOffset item.from
 		$item.css
-			top: @getVerticalOffset item.line
-			height: @getLineInnerHeight @getLineByName item.line
+			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
+			height: @getLineByName(item.line).getInnerHeight()
 			left: offset
 			width: @getOffset(item.to) - offset
 
