@@ -57,11 +57,11 @@
 			height: 10px;
 			background: #666;
 
-			&.named-6-hour {height: 5px;}
-			&.named-12-hour {height: 10px;}
-			&.named-24-hour {height: 20px;}
+			&.id-6-hour {height: 5px;}
+			&.id-12-hour {height: 10px;}
+			&.id-24-hour {height: 20px;}
 		}
-		
+
 		.tl-range {
 			position: absolute;
 			top: 0;
@@ -96,6 +96,14 @@
 			border-top: 5px solid #666;
 			border-bottom: 5px solid #666;
 
+			.tl-mouse {
+				position: absolute;
+				height: 20px;
+				line-height: 20px;
+				background: yellow;
+				margin-left: 16px;
+			}
+
 			.tl-line {
 				position: absolute;
 				left: 0;
@@ -122,12 +130,17 @@
 				width: 1px;
 				background: #666;
 
-				&.named-6-hour {display: none;}
+				&.id-6-hour {display: none;}
 			}
 
 			.tl-item {
 				position: absolute;
 				background: pink;
+
+			}
+
+			.ui-draggable-dragging {
+				background: rgba(0, 0, 0, 0.2);
 			}
 		}
 	}

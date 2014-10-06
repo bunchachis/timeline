@@ -54,6 +54,12 @@ class Range
 	getExtraOffsetAfter: ->
 		@extraOffsetAfter ? @timeline.config.range.extraOffset.after
 
+	getTimeByOffset: (offset)->
+		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
+
+	getTimeByInternalOffset: (internalOffset)->
+		@from + internalOffset * @timeline.config.scale
+
 class Line
 	constructor: (line, timeline)->
 		$.extend @, line
@@ -286,9 +292,10 @@ class Timeline
 			dash.$rulerDom.css left: offset
 
 	getOffset: (time)->	
-		range = @getRangeByTime time
-		if range?
-			range.getOffset() + range.getInternalOffset(time)
+		if time?
+			range = @getRangeByTime time
+			if range?
+				range.getOffset() + range.getInternalOffset(time)
 
 	getRangeByTime: (time)->
 		for range in @ranges
@@ -449,6 +456,76 @@ class Timeline
 		render = item.render ? @config.field.items.render
 		$item.html render item
 		@placeFieldItem $item, item
+		
+		$mouse = null
+		$item.draggable
+			containment: group.$fieldDom,
+			helper: ->
+				$('<div />').css
+					width: $item.css 'width'
+					height: $item.css 'height'
+
+		$item.on 'dragstart', (e, ui)=>
+			$mouse = @addDom 'mouse', group.$fieldDom
+			
+		$item.on 'dragstop', (e, ui)->
+			$mouse.remove()
+
+		$item.on 'drag', (e, ui)=>
+			offset = @getScrollContainer(group.$fieldDom).offset()
+			
+			$mouse.css
+				left: e.pageX - offset.left
+				top: e.pageY - offset.top
+
+			time =  @approxTime @getTime ui.position.left
+			if time?
+				$mouse.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+
+			$item.css
+				left: @approxOffset ui.position.left
+				top: @approxLine @getLineById(item.lineId).getGroup(), e.pageY - offset.top
+
+	approxOffset: (offset)->
+		@getOffset @approxTime @getTime offset
+
+	approxLine: (group, verticalOffset)->
+		line = @getLineByVerticalOffset group, verticalOffset
+		if line?
+			line.getVerticalOffset() + line.getInternalVerticalOffset()
+
+	approxTime: (time)->
+		if time?
+			snapResolution = 6 * 60 * 60
+			approxed = Math.round(time / snapResolution) * snapResolution
+			if @getRangeByTime approxed
+				approxed
+			else
+				approxed = Math.ceil(time / snapResolution) * snapResolution
+				if @getRangeByTime approxed
+					approxed
+				else
+					approxed = Math.floor(time / snapResolution) * snapResolution
+					approxed if @getRangeByTime approxed
+
+	getTime: (offset)->
+		range = @getRangeByOffset offset
+		if range?
+			range.getTimeByOffset offset
+
+	getRangeByOffset: (offset)->
+		for range in @ranges
+			rangeStart = range.getOffset() + range.getInternalOffset(range.from)
+			rangeEnd = rangeStart + range.getInnerWidth()
+			if rangeStart <= offset < rangeEnd
+				return range
+
+	getLineByVerticalOffset: (group, verticalOffset)->
+		for line in group.getLines()
+			lineStart = line.getVerticalOffset() + line.getInternalVerticalOffset()
+			lineEnd = lineStart + line.getInnerHeight()
+			if lineStart <= verticalOffset < lineEnd
+				return line
 
 	renderFieldItem: (item)->
 		item.html ? @addDom('text').text(item.text)
