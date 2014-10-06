@@ -8,23 +8,19 @@ class Element
 	cfg: ->
 		@timeline.config
 
-class Group
-	constructor: (group, timeline)->
-		$.extend @, group
-		@timeline = timeline
-
+class Group extends Element
 	getLines: ->
-		line for line in @timeline.lines when line.groupId is @id
+		line for line in @timeline.lines when line.groupId is @raw.id
 
 	getVerticalOffset: ->
-		@timeline.arraySum(
+		x = @timeline.arraySum(
 			for elseGroup in @timeline.groups
-				break if elseGroup.id is @id
+				break if elseGroup.raw.id is @raw.id
 				elseGroup.getOuterHeight() 
 		)
 
 	getInnerHeight: ->
-		@height ? @timeline.config.group.height
+		@raw.height ? @timeline.config.group.height
 
 	getOuterHeight: ->
 		@getInnerHeight() +
@@ -237,12 +233,12 @@ class Timeline
 
 	addGroup: (group)->
 		for elseGroup in @groups
-			if elseGroup.id is group.id
+			if elseGroup.raw.id is group.id
 				throw 'Can\'t add group with same id as existing one has'
 
 		@groups.push new Group group, @
 		@groups = @groups.sort (a, b)->
-			(a.order ? 0) - (b.order ? 0)
+			(a.raw.order ? 0) - (b.raw.order ? 0)
 
 	addLine: (line)->
 		for elseLine in @lines
@@ -463,7 +459,7 @@ class Timeline
 	placeSidebarGroup: (group)->
 		group.$sidebarDom.css
 			top : group.getVerticalOffset()
-			height: group.height
+			height: group.raw.height
 
 		@setInnerSize group.$sidebarDom,
 			y: @arraySum(line.getOuterHeight() for line in group.getLines())
@@ -492,7 +488,7 @@ class Timeline
 
 	getGroupById: (groupId)->
 		for group in @groups
-			if group.id is groupId
+			if group.raw.id is groupId
 				return group
 
 	buildField: ->
@@ -505,7 +501,7 @@ class Timeline
 	buildFieldGroup: (group)->
 		group.$fieldDom = @addDom 'group', @$field
 		@scrollize group.$fieldDom, 'xy', [
-			{axis: 'x', getTarget: => [@$ruler].concat(elseGroup.$fieldDom for elseGroup in @groups when elseGroup.id isnt group.id)},
+			{axis: 'x', getTarget: => [@$ruler].concat(elseGroup.$fieldDom for elseGroup in @groups when elseGroup.raw.id isnt group.raw.id)},
 			{axis: 'y', getTarget: => group.$sidebarDom}
 		]
 		@placeFieldGroup group
@@ -517,7 +513,7 @@ class Timeline
 	placeFieldGroup: (group)->
 		group.$fieldDom.css
 			top : group.getVerticalOffset()
-			height: group.height
+			height: group.raw.height
 
 		@setInnerSize group.$fieldDom, 
 			x: @arraySum(range.getOuterWidth() for range in @ranges)
@@ -571,14 +567,14 @@ class Timeline
 			dash.$fieldDom.css left: offset
 
 	buildFieldItems: (group)->
-		item.build() for item in @items when item.getLine().groupId is group.id
+		item.build() for item in @items when item.getLine().groupId is group.raw.id
 
 	approxOffset: (offset)->
 		@getOffset @approxTime @getTime offset
 
 	approxTime: (time)->
 		if time?
-			snapResolution = 6 * 60 * 60
+			snapResolution = 3 * 60 * 60
 			approxed = Math.round(time / snapResolution) * snapResolution
 			if @getRangeByTime approxed
 				approxed
