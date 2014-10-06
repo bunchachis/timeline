@@ -68,22 +68,26 @@
 						{id: '12-hour', type: 'every', step: 12*3600},
 						{id: '6-hour', type: 'every', step: 6*3600},
 					]
-	    		}, {
-	    			items: [
-	    				{
-	    					lineId: 'Line 1A',
-	    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-	    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-	    					text: 'Item 1'
-	    				},
-	    				{
-	    					lineId: 'Line 3A',
-	    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-	    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-	    					text: 'Item 2'
-	    				}
-	    			]
-	    		});
+	    		}, [
+    				{
+    					lineId: 'Line 1A',
+    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					text: 'Item 1'
+    				},
+    				{
+    					lineId: 'Line 2A',
+    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					text: 'Item 2'
+    				},
+    				{
+    					lineId: 'Line 3A',
+    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+    					text: 'Item 3'
+    				}
+	    		]);
 	    	});
     	</script>
     </body>

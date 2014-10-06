@@ -2,6 +2,12 @@ log = (x)-> console.log(x)
 
 # All ranges is [from, to)
 
+class Element
+	constructor: (@raw, @timeline)->
+
+	cfg: ->
+		@timeline.config
+
 class Group
 	constructor: (group, timeline)->
 		$.extend @, group
@@ -92,12 +98,117 @@ class Line
 	getExtraOffsetAfter: ->
 		@extraOffsetAfter ? @timeline.config.line.extraOffset.after
 
+class Item extends Element
+	getLine: ->
+		@timeline.getLineById @raw.lineId
+
+	getDuration: ->
+		@raw.to - @raw.from
+
+	isDraggable: ->
+		@raw.isDraggable ? @cfg().item.isDraggable ? true
+
+	canCrossRanges: ->
+		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? true
+
+	build: ->
+		@$dom = @timeline.addDom 'item', @getLine().getGroup().$fieldDom
+		@render()
+		@place()
+		@makeDraggable()
+
+	render: ->
+		(@raw.render ? @cfg().item.render ? @constructor.render).call @
+
+	@render: ->
+		@$dom.empty().append @timeline.addDom('text').text @raw.text
+
+	place: ->
+		(@raw.place ? @cfg().item.place ? @constructor.place).call @
+
+	@place: ->
+		line = @getLine()
+		offset = @timeline.getOffset @raw.from
+		@$dom.css
+			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
+			height: line.getInnerHeight()
+			left: offset
+			width: @timeline.getOffset(@raw.to-1) - offset
+	
+	makeDraggable: ->
+		@$dragHint = null
+		modified = null
+
+		@$dom.draggable
+			helper: =>
+				$('<div />').css
+					width: @$dom.css 'width'
+					height: @$dom.css 'height'
+			start: (e, ui)=>
+				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$fieldDom
+				modified = $.extend true, {}, @
+			stop: (e, ui)=>
+				@$dragHint.remove()
+				modified = null
+			drag: (e, ui)=>
+				group = @getLine().getGroup()
+				drag = 
+					parentOffset: @timeline.getScrollContainer(group.$fieldDom).offset()
+					event: e
+					ui: ui
+				
+				@renderDragHint drag
+				@placeDragHint drag
+				
+				duration = @getDuration()
+				modified.raw.from = @timeline.approxTime @timeline.getTime drag.ui.position.left
+				modified.raw.to = modified.raw.from + duration
+				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
+				modified.raw.lineId = newLine.id if newLine
+
+				if modified.isValid() and @canChangeTo modified
+					$.extend @raw, modified.raw
+					@place()
+
+	canChangeTo: (modified)->
+		(@raw.canChangeTo ? @cfg().item.canChangeTo ? @constructor.canChangeTo).call @, modified
+
+	@canChangeTo: (modified)->
+		true
+
+	isValid: ->
+		rangeFrom = @timeline.getRangeByTime @raw.from
+		return false if !rangeFrom?
+
+		rangeTo = @timeline.getRangeByTime @raw.to - 1
+		return false if !rangeTo?
+
+		return false if !@canCrossRanges() and rangeFrom isnt rangeTo
+
+		true
+
+	renderDragHint: (drag)->
+		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, drag
+
+	@renderDragHint: (drag)->
+		time =  @timeline.approxTime @timeline.getTime drag.ui.position.left
+		if time?
+			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+
+	placeDragHint: (drag)->
+		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, drag
+
+	@placeDragHint: (drag)-> 
+		@$dragHint.css
+			left: drag.event.pageX - drag.parentOffset.left
+			top: drag.event.pageY - drag.parentOffset.top
+
+
 class Timeline
-	constructor: (container, config = {}, data = {})->
+	constructor: (container, config = {}, items = [])->
 		@$container = $ container
 		@config = $.extend true, @getDefaultConfig(), config
-		@data = $.extend {items:[]}, data
-
+		
 		@ranges = []
 		@addRange range for range in @config.ranges
 
@@ -109,6 +220,9 @@ class Timeline
 
 		@dashRules = []
 		@addDashRule rule for rule in @config.dashRules
+
+		@items = []
+		@addItem item for item in items
 
 		@build()
 
@@ -148,6 +262,13 @@ class Timeline
 		@dashRules = @dashRules.sort (a, b)->
 			(a.order ? 0) - (b.order ? 0)
 
+	addItem: (obj)->
+		item = new Item obj, @
+		unless item.isValid()
+			throw 'Can\'t add item due to its invalidity'
+
+		@items.push item 
+
 	getDefaultConfig: ->
 		ruler:
 			position: 'top'
@@ -162,8 +283,6 @@ class Timeline
 				render: $.proxy @, 'renderFieldLine'
 			ranges:
 				render: $.proxy @, 'renderFieldRange'
-			items:
-				render: $.proxy @, 'renderFieldItem'
 		range:
 			extraOffset: 
 				before: 5
@@ -177,7 +296,11 @@ class Timeline
 			height: 50
 			extraOffset:
 				before: 5
-				after: 10	
+				after: 10
+		item:
+			isDraggable: true
+			canCrossRanges: true
+			render: null
 		scale: 1
 		dashRules: []
 		ranges: []
@@ -448,51 +571,10 @@ class Timeline
 			dash.$fieldDom.css left: offset
 
 	buildFieldItems: (group)->
-		@buildFieldItem item for item in @data.items when @getLineById(item.lineId).groupId is group.id
-
-	buildFieldItem: (item)->
-		group = @getLineById(item.lineId).getGroup()
-		$item = @addDom 'item', group.$fieldDom
-		render = item.render ? @config.field.items.render
-		$item.html render item
-		@placeFieldItem $item, item
-		
-		$mouse = null
-		$item.draggable
-			containment: group.$fieldDom,
-			helper: ->
-				$('<div />').css
-					width: $item.css 'width'
-					height: $item.css 'height'
-
-		$item.on 'dragstart', (e, ui)=>
-			$mouse = @addDom 'mouse', group.$fieldDom
-			
-		$item.on 'dragstop', (e, ui)->
-			$mouse.remove()
-
-		$item.on 'drag', (e, ui)=>
-			offset = @getScrollContainer(group.$fieldDom).offset()
-			
-			$mouse.css
-				left: e.pageX - offset.left
-				top: e.pageY - offset.top
-
-			time =  @approxTime @getTime ui.position.left
-			if time?
-				$mouse.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
-
-			$item.css
-				left: @approxOffset ui.position.left
-				top: @approxLine @getLineById(item.lineId).getGroup(), e.pageY - offset.top
+		item.build() for item in @items when item.getLine().groupId is group.id
 
 	approxOffset: (offset)->
 		@getOffset @approxTime @getTime offset
-
-	approxLine: (group, verticalOffset)->
-		line = @getLineByVerticalOffset group, verticalOffset
-		if line?
-			line.getVerticalOffset() + line.getInternalVerticalOffset()
 
 	approxTime: (time)->
 		if time?
@@ -526,17 +608,5 @@ class Timeline
 			lineEnd = lineStart + line.getInnerHeight()
 			if lineStart <= verticalOffset < lineEnd
 				return line
-
-	renderFieldItem: (item)->
-		item.html ? @addDom('text').text(item.text)
-
-	placeFieldItem: ($item, item)->
-		line = @getLineById item.lineId
-		offset = @getOffset item.from
-		$item.css
-			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
-			height: @getLineById(item.lineId).getInnerHeight()
-			left: offset
-			width: @getOffset(item.to) - offset
 
 window.Timeline = Timeline
