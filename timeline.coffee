@@ -5,7 +5,7 @@ log = (x)-> console.log(x)
 class Timeline
 	constructor: (container, config = {}, items = [])->
 		@$container = $ container
-		@config = $.extend true, @getDefaultConfig(), config
+		@config = $.extend yes, @getDefaultConfig(), config
 		
 		@ranges = []
 		@addRange range for range in @config.ranges
@@ -96,8 +96,8 @@ class Timeline
 			render: null
 			renderAtSidebar: null
 		item:
-			isDraggable: true
-			canCrossRanges: true
+			isDraggable: yes
+			canCrossRanges: yes
 			render: null
 		dash:
 			render: null
@@ -119,7 +119,7 @@ class Timeline
 
 		config =
 			theme: 'dark-2'
-			autoHideScrollbar: true
+			autoHideScrollbar: yes
 			axis: axis
 			scrollInertia: 0
 			mouseWheel:
@@ -141,7 +141,7 @@ class Timeline
 							$(@).mCustomScrollbar 'scrollTo', position,
 								scrollInertia: 0
 								timeout: 0
-								callbacks: false
+								callbacks: no
 
 		$element.mCustomScrollbar config
 
@@ -625,10 +625,10 @@ class Timeline.Item extends Timeline.Element
 		@raw.to - @raw.from
 
 	isDraggable: ->
-		@raw.isDraggable ? @cfg().item.isDraggable ? true
+		@raw.isDraggable ? @cfg().item.isDraggable ? yes
 
 	canCrossRanges: ->
-		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? true
+		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? yes
 
 	build: ->
 		@$dom = @timeline.addDom 'item', @getLine().getGroup().$dom
@@ -665,7 +665,7 @@ class Timeline.Item extends Timeline.Element
 					height: @$dom.css 'height'
 			start: (e, ui)=>
 				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$dom
-				modified = $.extend true, {}, @
+				modified = $.extend yes, {}, @
 			stop: (e, ui)=>
 				@$dragHint.remove()
 				modified = null
@@ -693,18 +693,18 @@ class Timeline.Item extends Timeline.Element
 		(@raw.canChangeTo ? @cfg().item.canChangeTo ? @constructor.canChangeTo).call @, modified
 
 	@canChangeTo: (modified)->
-		true
+		yes
 
 	isValid: ->
 		rangeFrom = @timeline.getRangeByTime @raw.from
-		return false if !rangeFrom?
+		return no if !rangeFrom?
 
 		rangeTo = @timeline.getRangeByTime @raw.to - 1
-		return false if !rangeTo?
+		return no if !rangeTo?
 
-		return false if !@canCrossRanges() and rangeFrom isnt rangeTo
+		return no if !@canCrossRanges() and rangeFrom isnt rangeTo
 
-		true
+		yes
 
 	renderDragHint: (drag)->
 		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, drag
