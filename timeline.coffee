@@ -2,379 +2,6 @@ log = (x)-> console.log(x)
 
 # All ranges is [from, to)
 
-class Element
-	constructor: (@raw, @timeline)->
-		@init()
-
-	init: ->
-
-	cfg: ->
-		@timeline.config
-
-class Group extends Element
-	getLines: ->
-		line for line in @timeline.lines when line.raw.groupId is @raw.id
-
-	getVerticalOffset: ->
-		x = @timeline.arraySum(
-			for elseGroup in @timeline.groups
-				break if elseGroup.raw.id is @raw.id
-				elseGroup.getOuterHeight() 
-		)
-
-	getInnerHeight: ->
-		@raw.height ? @timeline.config.group.height
-
-	getOuterHeight: ->
-		@getInnerHeight() +
-		@timeline.config.group.extraOffset.before +
-		@timeline.config.group.extraOffset.after
-
-	build: ->
-		@$dom = @timeline.addDom 'group', @timeline.$field
-		@timeline.scrollize @$dom, 'xy', [
-			{axis: 'x', getTarget: => [@timeline.$ruler].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
-			{axis: 'y', getTarget: => @$sidebarDom}
-		]
-		@place()
-
-		@buildLines()
-		@buildRanges()
-		@buildDashes()
-		@buildItems()
-
-	place: ->
-		@$dom.css
-			top : @getVerticalOffset()
-			height: @raw.height
-
-		@timeline.setInnerSize @$dom, 
-			x: @timeline.arraySum(range.getOuterWidth() for range in @timeline.ranges)
-			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
-
-	buildLines: ->
-		line.build() for line in @getLines()
-
-	buildRanges: ->
-		range.build @ for range in @timeline.ranges
-
-	buildDashes: ->
-		dash.build @ for dash in @timeline.calcDashes()
-
-	buildItems: ->
-		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
-
-	buildAtSidebar: ->
-		@$sidebarDom = @timeline.addDom 'group', @timeline.$sidebar
-		@timeline.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
-		@placeAtSidebar()
-
-		@buildLinesAtSidebar()
-
-	placeAtSidebar: ->
-		@$sidebarDom.css
-			top : @getVerticalOffset()
-			height: @raw.height
-
-		@timeline.setInnerSize @$sidebarDom,
-			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
-
-	buildLinesAtSidebar: ->
-		line.buildAtSidebar() for line in @getLines()
-
-class Range extends Element
-	init: ->
-		@$doms = []
-
-	getOffset: ->
-		@timeline.arraySum(
-			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
-				elseRange.getOuterWidth() 
-		)
-
-	getInternalOffset: (time)->
-		@getExtraOffsetBefore() +
-		Math.ceil(time / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
-
-	getInnerWidth: ->
-		Math.ceil(@raw.to / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
-
-	getOuterWidth: ->
-		@getInnerWidth() +
-		@getExtraOffsetBefore() +
-		@getExtraOffsetAfter()
-
-	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @timeline.config.range.extraOffset.before
-
-	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @timeline.config.range.extraOffset.after
-
-	getTimeByOffset: (offset)->
-		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
-
-	getTimeByInternalOffset: (internalOffset)->
-		@raw.from + internalOffset * @timeline.config.scale
-
-	build: (group)->
-		$dom = @timeline.addDom 'range', group.$dom
-		@$doms.push $dom
-		@render $dom
-		@place $dom
-
-	render: ($dom)->
-		(@raw.render ? @cfg().range.render ? @constructor.render).call @, $dom
-
-	@render: ($dom)->
-		$dom.empty()
-
-	place: ($dom)->
-		(@raw.place ? @cfg().range.place ? @constructor.place).call @, $dom
-
-	@place: ($dom)->
-		$dom.css
-			left: @getOffset()
-			width: @getInnerWidth()
-
-	buildAtRuler: ->
-		@$rulerDom = @timeline.addDom 'range', @timeline.$ruler
-		@renderAtRuler()
-		@placeAtRuler()
-
-	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().range.renderAtRuler ? @constructor.renderAtRuler).call @
-
-	@renderAtRuler: ->
-		from = moment.unix(@raw.from).format('DD.MM.YYYY HH:mm:ss')
-		to = moment.unix(@raw.to).format('DD.MM.YYYY HH:mm:ss')
-		@$rulerDom.empty().append @timeline.addDom('heading').text "#{from} — #{to}"
-
-	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().range.placeAtRuler ? @constructor.placeAtRuler).call @
-
-	@placeAtRuler: ->
-		@$rulerDom.css
-			left: @getOffset()
-			width: @getInnerWidth()
-
-
-class Dash extends Element
-	init: ->
-		@$doms = []
-
-	build: (group)->
-		$dom = @timeline.addDom 'dash', group.$dom
-		$dom.addClass "id-#{@raw.rule.id}"
-		@$doms.push $dom
-		@render $dom
-		@place $dom
-
-	render: ($dom)->
-		(@raw.render ? @cfg().dash.render ? @constructor.render).call @, $dom
-
-	@render: ($dom)->
-		$dom.empty()
-
-	place: ($dom)->
-		(@raw.place ? @cfg().dash.place ? @constructor.place).call @, $dom
-
-	@place: ($dom)->
-		offset = @timeline.getOffset @raw.time
-		if offset?
-			$dom.css left: offset
-
-	buildAtRuler: (dash)->
-		@$rulerDom = @timeline.addDom 'dash', @timeline.$ruler
-		@$rulerDom.addClass "id-#{@raw.rule.id}"
-		@renderAtRuler()
-		@placeAtRuler()
-
-	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().dash.renderAtRuler ? @constructor.renderAtRuler).call @
-
-	@renderAtRuler: ->
-		@$rulerDom.empty()
-
-	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().dash.placeAtRuler ? @constructor.placeAtRuler).call @
-
-	@placeAtRuler: ->
-		offset = @timeline.getOffset @raw.time
-		if offset?
-			@$rulerDom.css left: offset
-
-class Line extends Element
-	getVerticalOffset: ->
-		@timeline.arraySum(
-			for elseLine in @timeline.lines when elseLine.raw.groupId is @raw.groupId
-				break if elseLine.raw.id is @raw.id
-				elseLine.getOuterHeight() 
-		)
-
-	getInternalVerticalOffset: ->
-		@getExtraOffsetBefore()	
-
-	getInnerHeight: ->
-		@raw.height ? @timeline.config.line.height
-
-	getOuterHeight: ->
-		@getInnerHeight() +
-		@getExtraOffsetBefore() +
-		@getExtraOffsetAfter()
-
-	getGroup: ->
-		@timeline.getGroupById @raw.groupId
-
-	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @timeline.config.line.extraOffset.before
-
-	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @timeline.config.line.extraOffset.after
-
-	build: ->
-		@$dom = @timeline.addDom 'line', @getGroup().$dom
-		@render()
-		@place()
-
-	render: ->
-		(@raw.render ? @cfg().line.render ? @constructor.render).call @
-
-	@render: ->
-		@$dom.empty()
-
-	place: ->
-		(@raw.place ? @cfg().line.place ? @constructor.place).call @
-
-	@place: ->
-		@$dom.css
-			top: @getVerticalOffset()
-			height: @getInnerHeight()
-
-	buildAtSidebar: ->
-		@$sidebarDom = @timeline.addDom 'line', @getGroup().$sidebarDom
-		@renderAtSidebar()
-		@placeAtSidebar()
-
-	renderAtSidebar: ->
-		(@raw.renderAtSidebar ? @cfg().line.renderAtSidebar ? @constructor.renderAtSidebar).call @
-
-	@renderAtSidebar: ->
-		@$sidebarDom.empty().append @timeline.addDom('heading').text @raw.id
-
-	placeAtSidebar: ->
-		(@raw.placeAtSidebar ? @cfg().line.placeAtSidebar ? @constructor.placeAtSidebar).call @
-
-	@placeAtSidebar: ->
-		@$sidebarDom.css
-			top: @getVerticalOffset()
-			height: @getInnerHeight()
-
-class Item extends Element
-	getLine: ->
-		@timeline.getLineById @raw.lineId
-
-	getDuration: ->
-		@raw.to - @raw.from
-
-	isDraggable: ->
-		@raw.isDraggable ? @cfg().item.isDraggable ? true
-
-	canCrossRanges: ->
-		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? true
-
-	build: ->
-		@$dom = @timeline.addDom 'item', @getLine().getGroup().$dom
-		@render()
-		@place()
-		@makeDraggable()
-
-	render: ->
-		(@raw.render ? @cfg().item.render ? @constructor.render).call @
-
-	@render: ->
-		@$dom.empty().append @timeline.addDom('text').text @raw.text
-
-	place: ->
-		(@raw.place ? @cfg().item.place ? @constructor.place).call @
-
-	@place: ->
-		line = @getLine()
-		offset = @timeline.getOffset @raw.from
-		@$dom.css
-			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
-			height: line.getInnerHeight()
-			left: offset
-			width: @timeline.getOffset(@raw.to-1) - offset
-	
-	makeDraggable: ->
-		@$dragHint = null
-		modified = null
-
-		@$dom.draggable
-			helper: =>
-				$('<div />').css
-					width: @$dom.css 'width'
-					height: @$dom.css 'height'
-			start: (e, ui)=>
-				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$dom
-				modified = $.extend true, {}, @
-			stop: (e, ui)=>
-				@$dragHint.remove()
-				modified = null
-			drag: (e, ui)=>
-				group = @getLine().getGroup()
-				drag = 
-					parentOffset: @timeline.getScrollContainer(group.$dom).offset()
-					event: e
-					ui: ui
-				
-				@renderDragHint drag
-				@placeDragHint drag
-				
-				duration = @getDuration()
-				modified.raw.from = @timeline.approxTime @timeline.getTime drag.ui.position.left
-				modified.raw.to = modified.raw.from + duration
-				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
-				modified.raw.lineId = newLine.raw.id if newLine
-
-				if modified.isValid() and @canChangeTo modified
-					$.extend @raw, modified.raw
-					@place()
-
-	canChangeTo: (modified)->
-		(@raw.canChangeTo ? @cfg().item.canChangeTo ? @constructor.canChangeTo).call @, modified
-
-	@canChangeTo: (modified)->
-		true
-
-	isValid: ->
-		rangeFrom = @timeline.getRangeByTime @raw.from
-		return false if !rangeFrom?
-
-		rangeTo = @timeline.getRangeByTime @raw.to - 1
-		return false if !rangeTo?
-
-		return false if !@canCrossRanges() and rangeFrom isnt rangeTo
-
-		true
-
-	renderDragHint: (drag)->
-		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, drag
-
-	@renderDragHint: (drag)->
-		time =  @timeline.approxTime @timeline.getTime drag.ui.position.left
-		if time?
-			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
-
-	placeDragHint: (drag)->
-		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, drag
-
-	@placeDragHint: (drag)-> 
-		@$dragHint.css
-			left: drag.event.pageX - drag.parentOffset.left
-			top: drag.event.pageY - drag.parentOffset.top
-
-
 class Timeline
 	constructor: (container, config = {}, items = [])->
 		@$container = $ container
@@ -397,12 +24,15 @@ class Timeline
 
 		@build()
 
+	createElement: (type, data)->
+		new @constructor[type] @, data 
+
 	addRange: (range)->
 		for elseRange in @ranges
 			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
 				throw 'Can\'t add range overlapping existing one'
 
-		@ranges.push new Range range, @
+		@ranges.push @createElement 'Range', range
 		@ranges = @ranges.sort (a, b)->
 			a.raw.from - b.raw.from
 
@@ -411,7 +41,7 @@ class Timeline
 			if elseGroup.raw.id is group.id
 				throw 'Can\'t add group with same id as existing one has'
 
-		@groups.push new Group group, @
+		@groups.push @createElement 'Group', group
 		@groups = @groups.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
@@ -420,7 +50,7 @@ class Timeline
 			if elseLine.raw.id is line.id
 				throw 'Can\'t add line with same id as existing one has'
 
-		@lines.push new Line line, @
+		@lines.push @createElement 'Line', line
 		@lines = @lines.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
@@ -434,7 +64,7 @@ class Timeline
 			(a.order ? 0) - (b.order ? 0)
 
 	addItem: (obj)->
-		item = new Item obj, @
+		item = @createElement 'Item', obj
 		unless item.isValid()
 			throw 'Can\'t add item due to its invalidity'
 
@@ -585,7 +215,7 @@ class Timeline
 		map[dash.time] = dash for dash in dashes when !map[dash.time]?
 
 		dashes = []
-		dashes.push new Dash dash, @ for time, dash of map
+		dashes.push @createElement 'Dash', dash for time, dash of map
 		dashes
 
 	calcDashesEvery: (range, rule)->
@@ -655,5 +285,380 @@ class Timeline
 			lineEnd = lineStart + line.getInnerHeight()
 			if lineStart <= verticalOffset < lineEnd
 				return line
+
+
+
+class Timeline.Element
+	constructor: (@timeline, @raw)->
+		@init()
+
+	init: ->
+
+	cfg: ->
+		@timeline.config
+
+class Timeline.Group extends Timeline.Element
+	getLines: ->
+		line for line in @timeline.lines when line.raw.groupId is @raw.id
+
+	getVerticalOffset: ->
+		x = @timeline.arraySum(
+			for elseGroup in @timeline.groups
+				break if elseGroup.raw.id is @raw.id
+				elseGroup.getOuterHeight() 
+		)
+
+	getInnerHeight: ->
+		@raw.height ? @timeline.config.group.height
+
+	getOuterHeight: ->
+		@getInnerHeight() +
+		@timeline.config.group.extraOffset.before +
+		@timeline.config.group.extraOffset.after
+
+	build: ->
+		@$dom = @timeline.addDom 'group', @timeline.$field
+		@timeline.scrollize @$dom, 'xy', [
+			{axis: 'x', getTarget: => [@timeline.$ruler].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
+			{axis: 'y', getTarget: => @$sidebarDom}
+		]
+		@place()
+
+		@buildLines()
+		@buildRanges()
+		@buildDashes()
+		@buildItems()
+
+	place: ->
+		@$dom.css
+			top : @getVerticalOffset()
+			height: @raw.height
+
+		@timeline.setInnerSize @$dom, 
+			x: @timeline.arraySum(range.getOuterWidth() for range in @timeline.ranges)
+			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
+
+	buildLines: ->
+		line.build() for line in @getLines()
+
+	buildRanges: ->
+		range.build @ for range in @timeline.ranges
+
+	buildDashes: ->
+		dash.build @ for dash in @timeline.calcDashes()
+
+	buildItems: ->
+		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
+
+	buildAtSidebar: ->
+		@$sidebarDom = @timeline.addDom 'group', @timeline.$sidebar
+		@timeline.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
+		@placeAtSidebar()
+
+		@buildLinesAtSidebar()
+
+	placeAtSidebar: ->
+		@$sidebarDom.css
+			top : @getVerticalOffset()
+			height: @raw.height
+
+		@timeline.setInnerSize @$sidebarDom,
+			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
+
+	buildLinesAtSidebar: ->
+		line.buildAtSidebar() for line in @getLines()
+
+class Timeline.Range extends Timeline.Element
+	init: ->
+		@$doms = []
+
+	getOffset: ->
+		@timeline.arraySum(
+			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
+				elseRange.getOuterWidth() 
+		)
+
+	getInternalOffset: (time)->
+		@getExtraOffsetBefore() +
+		Math.ceil(time / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
+
+	getInnerWidth: ->
+		Math.ceil(@raw.to / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
+
+	getOuterWidth: ->
+		@getInnerWidth() +
+		@getExtraOffsetBefore() +
+		@getExtraOffsetAfter()
+
+	getExtraOffsetBefore: ->
+		@raw.extraOffsetBefore ? @timeline.config.range.extraOffset.before
+
+	getExtraOffsetAfter: ->
+		@raw.extraOffsetAfter ? @timeline.config.range.extraOffset.after
+
+	getTimeByOffset: (offset)->
+		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
+
+	getTimeByInternalOffset: (internalOffset)->
+		@raw.from + internalOffset * @timeline.config.scale
+
+	build: (group)->
+		$dom = @timeline.addDom 'range', group.$dom
+		@$doms.push $dom
+		@render $dom
+		@place $dom
+
+	render: ($dom)->
+		(@raw.render ? @cfg().range.render ? @constructor.render).call @, $dom
+
+	@render: ($dom)->
+		$dom.empty()
+
+	place: ($dom)->
+		(@raw.place ? @cfg().range.place ? @constructor.place).call @, $dom
+
+	@place: ($dom)->
+		$dom.css
+			left: @getOffset()
+			width: @getInnerWidth()
+
+	buildAtRuler: ->
+		@$rulerDom = @timeline.addDom 'range', @timeline.$ruler
+		@renderAtRuler()
+		@placeAtRuler()
+
+	renderAtRuler: ->
+		(@raw.renderAtRuler ? @cfg().range.renderAtRuler ? @constructor.renderAtRuler).call @
+
+	@renderAtRuler: ->
+		from = moment.unix(@raw.from).format('DD.MM.YYYY HH:mm:ss')
+		to = moment.unix(@raw.to).format('DD.MM.YYYY HH:mm:ss')
+		@$rulerDom.empty().append @timeline.addDom('heading').text "#{from} — #{to}"
+
+	placeAtRuler: ->
+		(@raw.placeAtRuler ? @cfg().range.placeAtRuler ? @constructor.placeAtRuler).call @
+
+	@placeAtRuler: ->
+		@$rulerDom.css
+			left: @getOffset()
+			width: @getInnerWidth()
+
+
+class Timeline.Dash extends Timeline.Element
+	init: ->
+		@$doms = []
+
+	build: (group)->
+		$dom = @timeline.addDom 'dash', group.$dom
+		$dom.addClass "id-#{@raw.rule.id}"
+		@$doms.push $dom
+		@render $dom
+		@place $dom
+
+	render: ($dom)->
+		(@raw.render ? @cfg().dash.render ? @constructor.render).call @, $dom
+
+	@render: ($dom)->
+		$dom.empty()
+
+	place: ($dom)->
+		(@raw.place ? @cfg().dash.place ? @constructor.place).call @, $dom
+
+	@place: ($dom)->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			$dom.css left: offset
+
+	buildAtRuler: (dash)->
+		@$rulerDom = @timeline.addDom 'dash', @timeline.$ruler
+		@$rulerDom.addClass "id-#{@raw.rule.id}"
+		@renderAtRuler()
+		@placeAtRuler()
+
+	renderAtRuler: ->
+		(@raw.renderAtRuler ? @cfg().dash.renderAtRuler ? @constructor.renderAtRuler).call @
+
+	@renderAtRuler: ->
+		@$rulerDom.empty()
+
+	placeAtRuler: ->
+		(@raw.placeAtRuler ? @cfg().dash.placeAtRuler ? @constructor.placeAtRuler).call @
+
+	@placeAtRuler: ->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			@$rulerDom.css left: offset
+
+class Timeline.Line extends Timeline.Element
+	getVerticalOffset: ->
+		@timeline.arraySum(
+			for elseLine in @timeline.lines when elseLine.raw.groupId is @raw.groupId
+				break if elseLine.raw.id is @raw.id
+				elseLine.getOuterHeight() 
+		)
+
+	getInternalVerticalOffset: ->
+		@getExtraOffsetBefore()	
+
+	getInnerHeight: ->
+		@raw.height ? @timeline.config.line.height
+
+	getOuterHeight: ->
+		@getInnerHeight() +
+		@getExtraOffsetBefore() +
+		@getExtraOffsetAfter()
+
+	getGroup: ->
+		@timeline.getGroupById @raw.groupId
+
+	getExtraOffsetBefore: ->
+		@raw.extraOffsetBefore ? @timeline.config.line.extraOffset.before
+
+	getExtraOffsetAfter: ->
+		@raw.extraOffsetAfter ? @timeline.config.line.extraOffset.after
+
+	build: ->
+		@$dom = @timeline.addDom 'line', @getGroup().$dom
+		@render()
+		@place()
+
+	render: ->
+		(@raw.render ? @cfg().line.render ? @constructor.render).call @
+
+	@render: ->
+		@$dom.empty()
+
+	place: ->
+		(@raw.place ? @cfg().line.place ? @constructor.place).call @
+
+	@place: ->
+		@$dom.css
+			top: @getVerticalOffset()
+			height: @getInnerHeight()
+
+	buildAtSidebar: ->
+		@$sidebarDom = @timeline.addDom 'line', @getGroup().$sidebarDom
+		@renderAtSidebar()
+		@placeAtSidebar()
+
+	renderAtSidebar: ->
+		(@raw.renderAtSidebar ? @cfg().line.renderAtSidebar ? @constructor.renderAtSidebar).call @
+
+	@renderAtSidebar: ->
+		@$sidebarDom.empty().append @timeline.addDom('heading').text @raw.id
+
+	placeAtSidebar: ->
+		(@raw.placeAtSidebar ? @cfg().line.placeAtSidebar ? @constructor.placeAtSidebar).call @
+
+	@placeAtSidebar: ->
+		@$sidebarDom.css
+			top: @getVerticalOffset()
+			height: @getInnerHeight()
+
+class Timeline.Item extends Timeline.Element
+	getLine: ->
+		@timeline.getLineById @raw.lineId
+
+	getDuration: ->
+		@raw.to - @raw.from
+
+	isDraggable: ->
+		@raw.isDraggable ? @cfg().item.isDraggable ? true
+
+	canCrossRanges: ->
+		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? true
+
+	build: ->
+		@$dom = @timeline.addDom 'item', @getLine().getGroup().$dom
+		@render()
+		@place()
+		@makeDraggable()
+
+	render: ->
+		(@raw.render ? @cfg().item.render ? @constructor.render).call @
+
+	@render: ->
+		@$dom.empty().append @timeline.addDom('text').text @raw.text
+
+	place: ->
+		(@raw.place ? @cfg().item.place ? @constructor.place).call @
+
+	@place: ->
+		line = @getLine()
+		offset = @timeline.getOffset @raw.from
+		@$dom.css
+			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
+			height: line.getInnerHeight()
+			left: offset
+			width: @timeline.getOffset(@raw.to-1) - offset
+	
+	makeDraggable: ->
+		@$dragHint = null
+		modified = null
+
+		@$dom.draggable
+			helper: =>
+				$('<div />').css
+					width: @$dom.css 'width'
+					height: @$dom.css 'height'
+			start: (e, ui)=>
+				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$dom
+				modified = $.extend true, {}, @
+			stop: (e, ui)=>
+				@$dragHint.remove()
+				modified = null
+			drag: (e, ui)=>
+				group = @getLine().getGroup()
+				drag = 
+					parentOffset: @timeline.getScrollContainer(group.$dom).offset()
+					event: e
+					ui: ui
+				
+				@renderDragHint drag
+				@placeDragHint drag
+				
+				duration = @getDuration()
+				modified.raw.from = @timeline.approxTime @timeline.getTime drag.ui.position.left
+				modified.raw.to = modified.raw.from + duration
+				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
+				modified.raw.lineId = newLine.raw.id if newLine
+
+				if modified.isValid() and @canChangeTo modified
+					$.extend @raw, modified.raw
+					@place()
+
+	canChangeTo: (modified)->
+		(@raw.canChangeTo ? @cfg().item.canChangeTo ? @constructor.canChangeTo).call @, modified
+
+	@canChangeTo: (modified)->
+		true
+
+	isValid: ->
+		rangeFrom = @timeline.getRangeByTime @raw.from
+		return false if !rangeFrom?
+
+		rangeTo = @timeline.getRangeByTime @raw.to - 1
+		return false if !rangeTo?
+
+		return false if !@canCrossRanges() and rangeFrom isnt rangeTo
+
+		true
+
+	renderDragHint: (drag)->
+		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, drag
+
+	@renderDragHint: (drag)->
+		time =  @timeline.approxTime @timeline.getTime drag.ui.position.left
+		if time?
+			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+
+	placeDragHint: (drag)->
+		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, drag
+
+	@placeDragHint: (drag)-> 
+		@$dragHint.css
+			left: drag.event.pageX - drag.parentOffset.left
+			top: drag.event.pageY - drag.parentOffset.top
+
 
 window.Timeline = Timeline
