@@ -77,38 +77,53 @@ class Timeline
 		@items.push item 
 
 	getDefaultConfig: ->
+		field:
+			render: null
+			place: null
 		ruler:
 			isVisible: yes
 			position: 'top'
 			height: 50
+			render: null
+			place: null
 		sidebar:
 			isVisible: yes
 			position: 'left'
 			width: 100
+			render: null
+			place: null
 		range:
 			extraOffset: 
 				before: 5
 				after: 15
 			render: null
+			place: null
 			renderAtRuler: null
+			placeAtRuler: null
 		group:
 			height: 500
 			extraOffset:
 				before: 20
 				after: 20
+			render: null
+			place: null
 		line:
 			height: 50
 			extraOffset:
 				before: 5
 				after: 10
 			render: null
+			place: null
 			renderAtSidebar: null
+			placeAtSidebar: null
 		item:
 			isDraggable: yes
 			canCrossRanges: yes
 			render: null
+			place: null
 		dash:
 			render: null
+			place: null
 		scale: 1
 		dashRules: []
 		ranges: []
@@ -289,11 +304,20 @@ class Timeline.Sidebar extends Timeline.Element
 
 	build: ->
 		@$dom = @u().addDom 'sidebar', @timeline.$root
+		@render()
 		@place()
 
 		@buildGroups()
 
+	render: ->
+		(@raw.render ? @cfg().sidebar.render ? @constructor.render).call @
+
+	@render: ->
+
 	place: ->
+		(@raw.place ? @cfg().sidebar.place ? @constructor.place).call @
+
+	@place: ->
 		@$dom.css if @cfg().ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
@@ -333,12 +357,21 @@ class Timeline.Ruler extends Timeline.Element
 	build: ->
 		@$dom = @u().addDom 'ruler', @timeline.$root
 		@u().scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
+		@render()
 		@place()
 		
 		@buildRanges()
 		@buildDashes()
 
+	render: ->
+		(@raw.render ? @cfg().ruler.render ? @constructor.render).call @
+
+	@render: ->
+
 	place: ->
+		(@raw.place ? @cfg().ruler.place ? @constructor.place).call @
+
+	@place: ->
 		@$dom.css if @cfg().sidebar.position is 'left'
 			left: @timeline.sidebar.getOuterWidth()
 			right: 0
@@ -369,11 +402,20 @@ class Timeline.Ruler extends Timeline.Element
 class Timeline.Field extends Timeline.Element
 	build: ->
 		@$dom = @u().addDom 'field', @timeline.$root
+		@render()
 		@place()
 
 		@buildGroups()
 
+	render: ->
+		(@raw.render ? @cfg().field.render ? @constructor.render).call @
+
+	@render: ->
+
 	place: ->
+		(@raw.place ? @cfg().field.place ? @constructor.place).call @
+
+	@place: ->
 		@$dom.css if @cfg().ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
@@ -432,7 +474,6 @@ class Timeline.Group extends Timeline.Element
 		(@raw.render ? @cfg().group.render ? @constructor.render).call @
 
 	@render: ->
-		@u().getScrollContainer(@$dom).empty()
 
 	place: ->
 		(@raw.place ? @cfg().group.place ? @constructor.place).call @
@@ -461,11 +502,20 @@ class Timeline.Group extends Timeline.Element
 	buildAtSidebar: ->
 		@$sidebarDom = @u().addDom 'group', @timeline.sidebar.$dom
 		@u().scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
+		@renderAtSidebar()
 		@placeAtSidebar()
 
 		@buildLinesAtSidebar()
 
+	renderAtSidebar: ->
+		(@raw.renderAtSidebar ? @cfg().group.renderAtSidebar ? @constructor.renderAtSidebar).call @
+
+	@renderAtSidebar: ->
+
 	placeAtSidebar: ->
+		(@raw.placeAtSidebar ? @cfg().group.placeAtSidebar ? @constructor.placeAtSidebar).call @
+
+	@placeAtSidebar: ->
 		@$sidebarDom.css
 			top : @getVerticalOffset()
 			height: @raw.height
@@ -521,7 +571,6 @@ class Timeline.Range extends Timeline.Element
 		(@raw.render ? @cfg().range.render ? @constructor.render).call @, $dom
 
 	@render: ($dom)->
-		$dom.empty()
 
 	place: ($dom)->
 		(@raw.place ? @cfg().range.place ? @constructor.place).call @, $dom
@@ -588,7 +637,6 @@ class Timeline.Dash extends Timeline.Element
 		(@raw.renderAtRuler ? @cfg().dash.renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
-		@$rulerDom.empty()
 
 	placeAtRuler: ->
 		(@raw.placeAtRuler ? @cfg().dash.placeAtRuler ? @constructor.placeAtRuler).call @
@@ -718,18 +766,18 @@ class Timeline.Item extends Timeline.Element
 				modified = null
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
-				drag = 
+				dragInfo = 
 					parentOffset: @u().getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 				
-				@renderDragHint drag
-				@placeDragHint drag
+				@renderDragHint dragInfo
+				@placeDragHint dragInfo
 				
 				duration = @getDuration()
-				modified.raw.from = @timeline.approxTime @timeline.getTime drag.ui.position.left
+				modified.raw.from = @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 				modified.raw.to = modified.raw.from + duration
-				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
+				newLine = @timeline.getLineByVerticalOffset group, dragInfo.event.pageY - dragInfo.parentOffset.top
 				modified.raw.lineId = newLine.raw.id if newLine
 
 				if modified.isValid() and @canChangeTo modified
@@ -753,18 +801,18 @@ class Timeline.Item extends Timeline.Element
 
 		yes
 
-	renderDragHint: (drag)->
-		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, drag
+	renderDragHint: (dragInfo)->
+		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, dragInfo
 
-	@renderDragHint: (drag)->
-		time =  @timeline.approxTime @timeline.getTime drag.ui.position.left
+	@renderDragHint: (dragInfo)->
+		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 		if time?
 			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
 
-	placeDragHint: (drag)->
-		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, drag
+	placeDragHint: (dragInfo)->
+		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, dragInfo
 
-	@placeDragHint: (drag)-> 
+	@placeDragHint: (dragInfo)-> 
 		@$dragHint.css
 			left: drag.event.pageX - drag.parentOffset.left
 			top: drag.event.pageY - drag.parentOffset.top
