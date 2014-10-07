@@ -10,7 +10,7 @@ class Element
 
 class Group extends Element
 	getLines: ->
-		line for line in @timeline.lines when line.groupId is @raw.id
+		line for line in @timeline.lines when line.raw.groupId is @raw.id
 
 	getVerticalOffset: ->
 		x = @timeline.arraySum(
@@ -58,15 +58,11 @@ class Range extends Element
 	getTimeByInternalOffset: (internalOffset)->
 		@raw.from + internalOffset * @timeline.config.scale
 
-class Line
-	constructor: (line, timeline)->
-		$.extend @, line
-		@timeline = timeline
-
+class Line extends Element
 	getVerticalOffset: ->
 		@timeline.arraySum(
-			for elseLine in @timeline.lines when elseLine.groupId is @groupId
-				break if elseLine.id is @id
+			for elseLine in @timeline.lines when elseLine.raw.groupId is @raw.groupId
+				break if elseLine.raw.id is @raw.id
 				elseLine.getOuterHeight() 
 		)
 
@@ -74,7 +70,7 @@ class Line
 		@getExtraOffsetBefore()	
 
 	getInnerHeight: ->
-		@height ? @timeline.config.line.height
+		@raw.height ? @timeline.config.line.height
 
 	getOuterHeight: ->
 		@getInnerHeight() +
@@ -82,13 +78,13 @@ class Line
 		@getExtraOffsetAfter()
 
 	getGroup: ->
-		@timeline.getGroupById @.groupId
+		@timeline.getGroupById @raw.groupId
 
 	getExtraOffsetBefore: ->
-		@extraOffsetBefore ? @timeline.config.line.extraOffset.before
+		@raw.extraOffsetBefore ? @timeline.config.line.extraOffset.before
 
 	getExtraOffsetAfter: ->
-		@extraOffsetAfter ? @timeline.config.line.extraOffset.after
+		@raw.extraOffsetAfter ? @timeline.config.line.extraOffset.after
 
 class Item extends Element
 	getLine: ->
@@ -156,7 +152,7 @@ class Item extends Element
 				modified.raw.from = @timeline.approxTime @timeline.getTime drag.ui.position.left
 				modified.raw.to = modified.raw.from + duration
 				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
-				modified.raw.lineId = newLine.id if newLine
+				modified.raw.lineId = newLine.raw.id if newLine
 
 				if modified.isValid() and @canChangeTo modified
 					$.extend @raw, modified.raw
@@ -238,12 +234,12 @@ class Timeline
 
 	addLine: (line)->
 		for elseLine in @lines
-			if elseLine.id is line.id
+			if elseLine.raw.id is line.id
 				throw 'Can\'t add line with same id as existing one has'
 
 		@lines.push new Line line, @
 		@lines = @lines.sort (a, b)->
-			(a.order ? 0) - (b.order ? 0)
+			(a.raw.order ? 0) - (b.raw.order ? 0)
 
 	addDashRule: (rule)->
 		for elseRule in @dashRules
@@ -470,7 +466,7 @@ class Timeline
 		@placeSidebarLine $line, line
 
 	renderSidebarLine: (line)->
-		@addDom('heading').text line.id
+		@addDom('heading').text line.raw.id
 
 	placeSidebarLine: ($line, line)->
 		$line.css
@@ -479,7 +475,7 @@ class Timeline
 
 	getLineById: (lineId)->
 		for line in @lines
-			if line.id is lineId
+			if line.raw.id is lineId
 				return line
 
 	getGroupById: (groupId)->
@@ -563,7 +559,7 @@ class Timeline
 			dash.$fieldDom.css left: offset
 
 	buildFieldItems: (group)->
-		item.build() for item in @items when item.getLine().groupId is group.raw.id
+		item.build() for item in @items when item.getLine().raw.groupId is group.raw.id
 
 	approxOffset: (offset)->
 		@getOffset @approxTime @getTime offset
