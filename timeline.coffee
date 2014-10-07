@@ -180,9 +180,22 @@ class Timeline
 		@buildRulerDashes()
 
 	placeRuler: ->
+		@$ruler.css if @config.sidebar.position is 'left'
+			left: @config.sidebar.width
+			right: 0
+		else 
+			left: 0
+			right: @config.sidebar.width
+
+		@$ruler.css if @config.ruler.position is 'top'
+			top: 0
+			bottom: 'auto'
+		else 
+			top: 'auto'
+			bottom: 0
+
 		@$ruler.css 
 			height: @config.ruler.height
-			left: @config.sidebar.width
 
 		@setInnerSize @$ruler, 
 			x: @arraySum(range.getOuterWidth() for range in @ranges)
@@ -234,8 +247,21 @@ class Timeline
 		@buildSidebarGroups()
 
 	placeSidebar: ->
-		@$sidebar.css 
+		@$sidebar.css if @config.ruler.position is 'top'
 			top: @config.ruler.height
+			bottom: 0
+		else 
+			top: 0
+			bottom: @config.ruler.height
+
+		@$sidebar.css if @config.sidebar.position is 'left'
+			left: 0
+			right: 'auto'
+		else 
+			left: 'auto'
+			right: 0
+
+		@$sidebar.css 
 			width: @config.sidebar.width
 
 	buildSidebarGroups: ->
@@ -258,9 +284,19 @@ class Timeline
 		@buildFieldGroups()
 
 	placeField: ->
-		@$field.css 
+		@$field.css if @config.ruler.position is 'top'
 			top: @config.ruler.height
+			bottom: 0
+		else 
+			top: 0
+			bottom: @config.ruler.height
+
+		@$field.css if @config.sidebar.position is 'left'
 			left: @config.sidebar.width
+			right: 0
+		else 
+			left: 0
+			right: @config.sidebar.width
 
 	buildFieldGroups: ->
 		group.build() for group in @groups
