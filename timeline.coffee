@@ -41,7 +41,7 @@ class Group extends Element
 		@buildLines()
 		@buildRanges()
 		@buildDashes()
-		@timeline.buildFieldItems @
+		@buildItems()
 
 	place: ->
 		@$dom.css
@@ -59,7 +59,28 @@ class Group extends Element
 		range.build @ for range in @timeline.ranges
 
 	buildDashes: ->
-		dash.build group for dash in @timeline.calcDashes()
+		dash.build @ for dash in @timeline.calcDashes()
+
+	buildItems: ->
+		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
+
+	buildAtSidebar: ->
+		@$sidebarDom = @timeline.addDom 'group', @timeline.$sidebar
+		@timeline.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
+		@placeAtSidebar()
+
+		@buildLinesAtSidebar()
+
+	placeAtSidebar: ->
+		@$sidebarDom.css
+			top : @getVerticalOffset()
+			height: @raw.height
+
+		@timeline.setInnerSize @$sidebarDom,
+			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
+
+	buildLinesAtSidebar: ->
+		line.buildAtSidebar() for line in @getLines()
 
 class Range extends Element
 	init: ->
@@ -115,18 +136,35 @@ class Range extends Element
 			left: @getOffset()
 			width: @getInnerWidth()
 
+	buildAtRuler: ->
+		@$rulerDom = @timeline.addDom 'range', @timeline.$ruler
+		@renderAtRuler()
+		@placeAtRuler()
+
+	renderAtRuler: ->
+		(@raw.renderAtRuler ? @cfg().range.renderAtRuler ? @constructor.renderAtRuler).call @
+
+	@renderAtRuler: ->
+		from = moment.unix(@raw.from).format('DD.MM.YYYY HH:mm:ss')
+		to = moment.unix(@raw.to).format('DD.MM.YYYY HH:mm:ss')
+		@$rulerDom.empty().append @timeline.addDom('heading').text "#{from} — #{to}"
+
+	placeAtRuler: ->
+		(@raw.placeAtRuler ? @cfg().range.placeAtRuler ? @constructor.placeAtRuler).call @
+
+	@placeAtRuler: ->
+		@$rulerDom.css
+			left: @getOffset()
+			width: @getInnerWidth()
+
+
 class Dash extends Element
 	init: ->
 		@$doms = []
 
-	placeFieldDash: (dash)->
-		offset = @getOffset dash.time
-		if offset?
-			dash.$dom.css left: offset
-
 	build: (group)->
 		$dom = @timeline.addDom 'dash', group.$dom
-		$dom.addClass "id-#{dash.rule.id}"
+		$dom.addClass "id-#{@raw.rule.id}"
 		@$doms.push $dom
 		@render $dom
 		@place $dom
@@ -144,6 +182,26 @@ class Dash extends Element
 		offset = @timeline.getOffset @raw.time
 		if offset?
 			$dom.css left: offset
+
+	buildAtRuler: (dash)->
+		@$rulerDom = @timeline.addDom 'dash', @timeline.$ruler
+		@$rulerDom.addClass "id-#{@raw.rule.id}"
+		@renderAtRuler()
+		@placeAtRuler()
+
+	renderAtRuler: ->
+		(@raw.renderAtRuler ? @cfg().dash.renderAtRuler ? @constructor.renderAtRuler).call @
+
+	@renderAtRuler: ->
+		@$rulerDom.empty()
+
+	placeAtRuler: ->
+		(@raw.placeAtRuler ? @cfg().dash.placeAtRuler ? @constructor.placeAtRuler).call @
+
+	@placeAtRuler: ->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			@$rulerDom.css left: offset
 
 class Line extends Element
 	getVerticalOffset: ->
@@ -189,6 +247,25 @@ class Line extends Element
 
 	@place: ->
 		@$dom.css
+			top: @getVerticalOffset()
+			height: @getInnerHeight()
+
+	buildAtSidebar: ->
+		@$sidebarDom = @timeline.addDom 'line', @getGroup().$sidebarDom
+		@renderAtSidebar()
+		@placeAtSidebar()
+
+	renderAtSidebar: ->
+		(@raw.renderAtSidebar ? @cfg().line.renderAtSidebar ? @constructor.renderAtSidebar).call @
+
+	@renderAtSidebar: ->
+		@$sidebarDom.empty().append @timeline.addDom('heading').text @raw.id
+
+	placeAtSidebar: ->
+		(@raw.placeAtSidebar ? @cfg().line.placeAtSidebar ? @constructor.placeAtSidebar).call @
+
+	@placeAtSidebar: ->
+		@$sidebarDom.css
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
 
@@ -381,6 +458,8 @@ class Timeline
 			extraOffset: 
 				before: 5
 				after: 15
+			render: null
+			renderAtRuler: null
 		group:
 			height: 500
 			extraOffset:
@@ -394,6 +473,8 @@ class Timeline
 		item:
 			isDraggable: true
 			canCrossRanges: true
+			render: null
+		dash:
 			render: null
 		scale: 1
 		dashRules: []
@@ -477,36 +558,10 @@ class Timeline
 			x: @arraySum(range.getOuterWidth() for range in @ranges)
 
 	buildRulerRanges: ->
-		@buildRulerRange range for range in @ranges
-
-	buildRulerRange: (range)->
-		$range = @addDom 'range', @$ruler
-		render = range.rulerRender ? @config.ruler.ranges.render
-		$range.html render range
-		@placeRulerRange $range, range
-
-	renderRulerRange: (range)->
-		from = moment.unix(range.raw.from).format('DD.MM.YYYY HH:mm:ss')
-		to = moment.unix(range.raw.to).format('DD.MM.YYYY HH:mm:ss')
-		@addDom('heading').text "#{from} — #{to}"
-
-	placeRulerRange: ($range, range)->
-		$range.css
-			left: range.getOffset()
-			width: range.getInnerWidth()
+		range.buildAtRuler() for range in @ranges
 
 	buildRulerDashes: ->
-		@buildRulerDash dash for dash in @calcDashes()
-
-	buildRulerDash: (dash)->
-		dash.$rulerDom = @addDom 'dash', @$ruler
-		dash.$rulerDom.addClass "id-#{dash.rule.id}"
-		@placeRulerDash dash
-
-	placeRulerDash: (dash)->
-		offset = @getOffset dash.time
-		if offset?
-			dash.$rulerDom.css left: offset
+		dash.buildAtRuler() for dash in @calcDashes()
 
 	getOffset: (time)->	
 		if time?
@@ -530,7 +585,7 @@ class Timeline
 		map[dash.time] = dash for dash in dashes when !map[dash.time]?
 
 		dashes = []
-		dashes.push dash for time, dash of map
+		dashes.push new Dash dash, @ for time, dash of map
 		dashes
 
 	calcDashesEvery: (range, rule)->
@@ -546,38 +601,7 @@ class Timeline
 		@buildSidebarGroups()
 
 	buildSidebarGroups: ->
-		@buildSidebarGroup group for group in @groups
-
-	buildSidebarGroup: (group)->
-		group.$sidebarDom = @addDom 'group', @$sidebar
-		@scrollize group.$sidebarDom, 'y', [{axis: 'y', getTarget: => group.$dom}]
-		@placeSidebarGroup group
-		@buildSidebarLines group
-
-	placeSidebarGroup: (group)->
-		group.$sidebarDom.css
-			top : group.getVerticalOffset()
-			height: group.raw.height
-
-		@setInnerSize group.$sidebarDom,
-			y: @arraySum(line.getOuterHeight() for line in group.getLines())
-
-	buildSidebarLines: (group)->
-		@buildSidebarLine line for line in group.getLines()
-
-	buildSidebarLine: (line)->
-		$line = @addDom 'line', line.getGroup().$sidebarDom
-		render = line.sidebarRender ? @config.sidebar.lines.render
-		$line.html render line
-		@placeSidebarLine $line, line
-
-	renderSidebarLine: (line)->
-		@addDom('heading').text line.raw.id
-
-	placeSidebarLine: ($line, line)->
-		$line.css
-			top: line.getVerticalOffset()
-			height: line.getInnerHeight()
+		group.buildAtSidebar() for group in @groups
 
 	getLineById: (lineId)->
 		for line in @lines
@@ -595,9 +619,6 @@ class Timeline
 
 	buildFieldGroups: ->
 		group.build() for group in @groups
-
-	buildFieldItems: (group)->
-		item.build() for item in @items when item.getLine().raw.groupId is group.raw.id
 
 	approxOffset: (offset)->
 		@getOffset @approxTime @getTime offset
