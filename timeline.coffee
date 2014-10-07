@@ -73,8 +73,10 @@ class Timeline
 	getDefaultConfig: ->
 		ruler:
 			position: 'top'
+			height: 50
 		sidebar:
 			position: 'left'
+			width: 100
 		range:
 			extraOffset: 
 				before: 5
@@ -173,12 +175,18 @@ class Timeline
 		@$ruler = @addDom 'ruler', @$root
 		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$dom for group in @groups}]
 		@placeRuler()
+		
 		@buildRulerRanges()
 		@buildRulerDashes()
 
 	placeRuler: ->
+		@$ruler.css 
+			height: @config.ruler.height
+			left: @config.sidebar.width
+
 		@setInnerSize @$ruler, 
 			x: @arraySum(range.getOuterWidth() for range in @ranges)
+			y: @config.ruler.height
 
 	buildRulerRanges: ->
 		range.buildAtRuler() for range in @ranges
@@ -221,7 +229,14 @@ class Timeline
 
 	buildSidebar: ->
 		@$sidebar = @addDom 'sidebar', @$root
+		@placeSidebar()
+
 		@buildSidebarGroups()
+
+	placeSidebar: ->
+		@$sidebar.css 
+			top: @config.ruler.height
+			width: @config.sidebar.width
 
 	buildSidebarGroups: ->
 		group.buildAtSidebar() for group in @groups
@@ -238,7 +253,14 @@ class Timeline
 
 	buildField: ->
 		@$field = @addDom 'field', @$root
+		@placeField()
+
 		@buildFieldGroups()
+
+	placeField: ->
+		@$field.css 
+			top: @config.ruler.height
+			left: @config.sidebar.width
 
 	buildFieldGroups: ->
 		group.build() for group in @groups
@@ -327,7 +349,7 @@ class Timeline.Group extends Timeline.Element
 		(@raw.render ? @cfg().group.render ? @constructor.render).call @
 
 	@render: ->
-		@$dom.empty()
+		@timeline.getScrollContainer(@$dom).empty()
 
 	place: ->
 		(@raw.place ? @cfg().group.place ? @constructor.place).call @
@@ -366,6 +388,7 @@ class Timeline.Group extends Timeline.Element
 			height: @raw.height
 
 		@timeline.setInnerSize @$sidebarDom,
+			x: @cfg().sidebar.width
 			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
 
 	buildLinesAtSidebar: ->
