@@ -27,23 +27,19 @@ class Group extends Element
 		@timeline.config.group.extraOffset.before +
 		@timeline.config.group.extraOffset.after
 
-class Range
-	constructor: (range, timeline)->
-		$.extend @, range
-		@timeline = timeline
-
+class Range extends Element
 	getOffset: ->
 		@timeline.arraySum(
-			for elseRange in @timeline.ranges when elseRange.from < @from
+			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
 				elseRange.getOuterWidth() 
 		)
 
 	getInternalOffset: (time)->
 		@getExtraOffsetBefore() +
-		Math.ceil(time / @timeline.config.scale) - Math.ceil(@from / @timeline.config.scale)
+		Math.ceil(time / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
 
 	getInnerWidth: ->
-		Math.ceil(@to / @timeline.config.scale) - Math.ceil(@from / @timeline.config.scale)
+		Math.ceil(@raw.to / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
 
 	getOuterWidth: ->
 		@getInnerWidth() +
@@ -51,16 +47,16 @@ class Range
 		@getExtraOffsetAfter()
 
 	getExtraOffsetBefore: ->
-		@extraOffsetBefore ? @timeline.config.range.extraOffset.before
+		@raw.extraOffsetBefore ? @timeline.config.range.extraOffset.before
 
 	getExtraOffsetAfter: ->
-		@extraOffsetAfter ? @timeline.config.range.extraOffset.after
+		@raw.extraOffsetAfter ? @timeline.config.range.extraOffset.after
 
 	getTimeByOffset: (offset)->
 		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
 
 	getTimeByInternalOffset: (internalOffset)->
-		@from + internalOffset * @timeline.config.scale
+		@raw.from + internalOffset * @timeline.config.scale
 
 class Line
 	constructor: (line, timeline)->
@@ -224,12 +220,12 @@ class Timeline
 
 	addRange: (range)->
 		for elseRange in @ranges
-			if range.from < elseRange.to and range.to > elseRange.from 
+			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
 				throw 'Can\'t add range overlapping existing one'
 
 		@ranges.push new Range range, @
 		@ranges = @ranges.sort (a, b)->
-			a.from - b.from
+			a.raw.from - b.raw.from
 
 	addGroup: (group)->
 		for elseGroup in @groups
@@ -388,8 +384,8 @@ class Timeline
 		@placeRulerRange $range, range
 
 	renderRulerRange: (range)->
-		from = moment.unix(range.from).format('DD.MM.YYYY HH:mm:ss')
-		to = moment.unix(range.to).format('DD.MM.YYYY HH:mm:ss')
+		from = moment.unix(range.raw.from).format('DD.MM.YYYY HH:mm:ss')
+		to = moment.unix(range.raw.to).format('DD.MM.YYYY HH:mm:ss')
 		@addDom('heading').text "#{from} — #{to}"
 
 	placeRulerRange: ($range, range)->
@@ -418,7 +414,7 @@ class Timeline
 
 	getRangeByTime: (time)->
 		for range in @ranges
-			if range.from <= time < range.to
+			if range.raw.from <= time < range.raw.to
 				return range
 
 	calcDashes: ->
@@ -437,8 +433,8 @@ class Timeline
 
 	calcDashesEvery: (range, rule)->
 		dashes = []
-		time = range.from
-		while time < range.to
+		time = range.raw.from
+		while time < range.raw.to
 			dashes.push {time, rule}
 			time += rule.step
 		dashes
@@ -593,7 +589,7 @@ class Timeline
 
 	getRangeByOffset: (offset)->
 		for range in @ranges
-			rangeStart = range.getOffset() + range.getInternalOffset(range.from)
+			rangeStart = range.getOffset() + range.getInternalOffset(range.raw.from)
 			rangeEnd = rangeStart + range.getInnerWidth()
 			if rangeStart <= offset < rangeEnd
 				return range
