@@ -78,9 +78,11 @@ class Timeline
 
 	getDefaultConfig: ->
 		ruler:
+			isVisible: yes
 			position: 'top'
 			height: 50
 		sidebar:
+			isVisible: yes
 			position: 'left'
 			width: 100
 		range:
@@ -270,6 +272,21 @@ class Timeline.Element
 		@timeline.util
 
 class Timeline.Sidebar extends Timeline.Element
+	isVisible: ->
+		@raw.isVisible ? @cfg().sidebar.isVisible ? yes
+
+	getOuterWidth: ->
+		if @isVisible()
+			@getInnerWidth()
+		else
+			0
+
+	getInnerWidth: ->
+		if @isVisible()
+			@raw.width ? @cfg().sidebar.width ? 100
+		else
+			0
+
 	build: ->
 		@$dom = @u().addDom 'sidebar', @timeline.$root
 		@place()
@@ -278,11 +295,11 @@ class Timeline.Sidebar extends Timeline.Element
 
 	place: ->
 		@$dom.css if @cfg().ruler.position is 'top'
-			top: @cfg().ruler.height
+			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
-			bottom: @cfg().ruler.height
+			bottom: @timeline.ruler.getOuterHeight()
 
 		@$dom.css if @cfg().sidebar.position is 'left'
 			left: 0
@@ -292,12 +309,27 @@ class Timeline.Sidebar extends Timeline.Element
 			right: 0
 
 		@$dom.css 
-			width: @cfg().sidebar.width
+			width: @getInnerWidth()
 
 	buildGroups: ->
 		group.buildAtSidebar() for group in @timeline.groups
 
 class Timeline.Ruler extends Timeline.Element
+	isVisible: ->
+		@raw.isVisible ? @cfg().ruler.isVisible ? yes
+
+	getOuterHeight: ->
+		if @isVisible()
+			@getInnerHeight()
+		else
+			0
+
+	getInnerHeight: ->
+		if @isVisible()
+			@raw.height ? @cfg().ruler.height ? 50
+		else
+			0
+
 	build: ->
 		@$dom = @u().addDom 'ruler', @timeline.$root
 		@u().scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
@@ -308,11 +340,11 @@ class Timeline.Ruler extends Timeline.Element
 
 	place: ->
 		@$dom.css if @cfg().sidebar.position is 'left'
-			left: @cfg().sidebar.width
+			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
 			left: 0
-			right: @cfg().sidebar.width
+			right: @timeline.sidebar.getOuterWidth()
 
 		@$dom.css if @cfg().ruler.position is 'top'
 			top: 0
@@ -322,11 +354,11 @@ class Timeline.Ruler extends Timeline.Element
 			bottom: 0
 
 		@$dom.css 
-			height: @cfg().ruler.height
+			height: @timeline.ruler.getInnerHeight()
 
 		@u().setInnerSize @$dom, 
 			x: @u().arraySum(range.getOuterWidth() for range in @timeline.ranges)
-			y: @cfg().ruler.height
+			y: @timeline.ruler.getInnerHeight()
 
 	buildRanges: ->
 		range.buildAtRuler() for range in @timeline.ranges
@@ -343,18 +375,18 @@ class Timeline.Field extends Timeline.Element
 
 	place: ->
 		@$dom.css if @cfg().ruler.position is 'top'
-			top: @cfg().ruler.height
+			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
-			bottom: @cfg().ruler.height
+			bottom: @timeline.ruler.getOuterHeight()
 
 		@$dom.css if @cfg().sidebar.position is 'left'
-			left: @cfg().sidebar.width
+			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
 			left: 0
-			right: @cfg().sidebar.width
+			right: @timeline.sidebar.getOuterWidth()
 
 	buildGroups: ->
 		group.build() for group in @timeline.groups
@@ -381,8 +413,12 @@ class Timeline.Group extends Timeline.Element
 	build: ->
 		@$dom = @u().addDom 'group', @timeline.field.$dom
 		@u().scrollize @$dom, 'xy', [
-			{axis: 'x', getTarget: => [@timeline.ruler.$dom].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
-			{axis: 'y', getTarget: => @$sidebarDom}
+			{axis: 'x', getTarget: => 
+				targets = (elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)
+				targets.push @timeline.ruler.$dom if @timeline.ruler.$dom?
+				targets
+			},
+			{axis: 'y', getTarget: => @$sidebarDom ? null}
 		]
 		@render()
 		@place()
@@ -435,7 +471,7 @@ class Timeline.Group extends Timeline.Element
 			height: @raw.height
 
 		@u().setInnerSize @$sidebarDom,
-			x: @cfg().sidebar.width
+			x: @timeline.sidebar.getInnerWidth()
 			y: @u().arraySum(line.getOuterHeight() for line in @getLines())
 
 	buildLinesAtSidebar: ->
