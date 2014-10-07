@@ -223,12 +223,12 @@ class Timeline.Util
 		if pairs.length
 			config.callbacks.whileScrolling = ->
 				for pair in pairs
-					position = {}
-					position.x = @mcs.left + 'px' if pair.axis.indexOf('x') > -1
-					position.y = @mcs.top + 'px' if pair.axis.indexOf('y') > -1
-
 					$targets = pair.getTarget()
-					if $targets.length
+					if $targets?.length
+						position = {}
+						position.x = @mcs.left + 'px' if pair.axis.indexOf('x') > -1
+						position.y = @mcs.top + 'px' if pair.axis.indexOf('y') > -1
+
 						$.each $targets, ->
 							$(@).mCustomScrollbar 'scrollTo', position,
 								scrollInertia: 0
