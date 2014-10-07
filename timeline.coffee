@@ -4,6 +4,9 @@ log = (x)-> console.log(x)
 
 class Element
 	constructor: (@raw, @timeline)->
+		@init()
+
+	init: ->
 
 	cfg: ->
 		@timeline.config
@@ -27,7 +30,41 @@ class Group extends Element
 		@timeline.config.group.extraOffset.before +
 		@timeline.config.group.extraOffset.after
 
+	build: ->
+		@$dom = @timeline.addDom 'group', @timeline.$field
+		@timeline.scrollize @$dom, 'xy', [
+			{axis: 'x', getTarget: => [@timeline.$ruler].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
+			{axis: 'y', getTarget: => @$sidebarDom}
+		]
+		@place()
+
+		@buildLines()
+		@buildRanges()
+		@buildDashes()
+		@timeline.buildFieldItems @
+
+	place: ->
+		@$dom.css
+			top : @getVerticalOffset()
+			height: @raw.height
+
+		@timeline.setInnerSize @$dom, 
+			x: @timeline.arraySum(range.getOuterWidth() for range in @timeline.ranges)
+			y: @timeline.arraySum(line.getOuterHeight() for line in @getLines())
+
+	buildLines: ->
+		line.build() for line in @getLines()
+
+	buildRanges: ->
+		range.build @ for range in @timeline.ranges
+
+	buildDashes: ->
+		dash.build group for dash in @timeline.calcDashes()
+
 class Range extends Element
+	init: ->
+		@$doms = []
+
 	getOffset: ->
 		@timeline.arraySum(
 			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
@@ -58,6 +95,56 @@ class Range extends Element
 	getTimeByInternalOffset: (internalOffset)->
 		@raw.from + internalOffset * @timeline.config.scale
 
+	build: (group)->
+		$dom = @timeline.addDom 'range', group.$dom
+		@$doms.push $dom
+		@render $dom
+		@place $dom
+
+	render: ($dom)->
+		(@raw.render ? @cfg().range.render ? @constructor.render).call @, $dom
+
+	@render: ($dom)->
+		$dom.empty()
+
+	place: ($dom)->
+		(@raw.place ? @cfg().range.place ? @constructor.place).call @, $dom
+
+	@place: ($dom)->
+		$dom.css
+			left: @getOffset()
+			width: @getInnerWidth()
+
+class Dash extends Element
+	init: ->
+		@$doms = []
+
+	placeFieldDash: (dash)->
+		offset = @getOffset dash.time
+		if offset?
+			dash.$dom.css left: offset
+
+	build: (group)->
+		$dom = @timeline.addDom 'dash', group.$dom
+		$dom.addClass "id-#{dash.rule.id}"
+		@$doms.push $dom
+		@render $dom
+		@place $dom
+
+	render: ($dom)->
+		(@raw.render ? @cfg().dash.render ? @constructor.render).call @, $dom
+
+	@render: ($dom)->
+		$dom.empty()
+
+	place: ($dom)->
+		(@raw.place ? @cfg().dash.place ? @constructor.place).call @, $dom
+
+	@place: ($dom)->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			$dom.css left: offset
+
 class Line extends Element
 	getVerticalOffset: ->
 		@timeline.arraySum(
@@ -86,6 +173,25 @@ class Line extends Element
 	getExtraOffsetAfter: ->
 		@raw.extraOffsetAfter ? @timeline.config.line.extraOffset.after
 
+	build: ->
+		@$dom = @timeline.addDom 'line', @getGroup().$dom
+		@render()
+		@place()
+
+	render: ->
+		(@raw.render ? @cfg().line.render ? @constructor.render).call @
+
+	@render: ->
+		@$dom.empty()
+
+	place: ->
+		(@raw.place ? @cfg().line.place ? @constructor.place).call @
+
+	@place: ->
+		@$dom.css
+			top: @getVerticalOffset()
+			height: @getInnerHeight()
+
 class Item extends Element
 	getLine: ->
 		@timeline.getLineById @raw.lineId
@@ -100,7 +206,7 @@ class Item extends Element
 		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? true
 
 	build: ->
-		@$dom = @timeline.addDom 'item', @getLine().getGroup().$fieldDom
+		@$dom = @timeline.addDom 'item', @getLine().getGroup().$dom
 		@render()
 		@place()
 		@makeDraggable()
@@ -133,7 +239,7 @@ class Item extends Element
 					width: @$dom.css 'width'
 					height: @$dom.css 'height'
 			start: (e, ui)=>
-				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$fieldDom
+				@$dragHint = @timeline.addDom 'drag-hint', @getLine().getGroup().$dom
 				modified = $.extend true, {}, @
 			stop: (e, ui)=>
 				@$dragHint.remove()
@@ -141,7 +247,7 @@ class Item extends Element
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				drag = 
-					parentOffset: @timeline.getScrollContainer(group.$fieldDom).offset()
+					parentOffset: @timeline.getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 				
@@ -361,7 +467,7 @@ class Timeline
 
 	buildRuler: ->
 		@$ruler = @addDom 'ruler', @$root
-		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$fieldDom for group in @groups}]
+		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$dom for group in @groups}]
 		@placeRuler()
 		@buildRulerRanges()
 		@buildRulerDashes()
@@ -418,7 +524,7 @@ class Timeline
 		for dashRule in @dashRules 
 			for range in @ranges
 				if dashRule.type is 'every'
-					dashes = dashes.concat @calcDashesEvery(range, dashRule)
+					dashes = dashes.concat @calcDashesEvery range, dashRule
 		
 		map = {}
 		map[dash.time] = dash for dash in dashes when !map[dash.time]?
@@ -444,7 +550,7 @@ class Timeline
 
 	buildSidebarGroup: (group)->
 		group.$sidebarDom = @addDom 'group', @$sidebar
-		@scrollize group.$sidebarDom, 'y', [{axis: 'y', getTarget: => group.$fieldDom}]
+		@scrollize group.$sidebarDom, 'y', [{axis: 'y', getTarget: => group.$dom}]
 		@placeSidebarGroup group
 		@buildSidebarLines group
 
@@ -488,75 +594,7 @@ class Timeline
 		@buildFieldGroups()
 
 	buildFieldGroups: ->
-		@buildFieldGroup group for group in @groups
-
-	buildFieldGroup: (group)->
-		group.$fieldDom = @addDom 'group', @$field
-		@scrollize group.$fieldDom, 'xy', [
-			{axis: 'x', getTarget: => [@$ruler].concat(elseGroup.$fieldDom for elseGroup in @groups when elseGroup.raw.id isnt group.raw.id)},
-			{axis: 'y', getTarget: => group.$sidebarDom}
-		]
-		@placeFieldGroup group
-		@buildFieldLines group
-		@buildFieldRanges group
-		@buildFieldDashes group
-		@buildFieldItems group
-
-	placeFieldGroup: (group)->
-		group.$fieldDom.css
-			top : group.getVerticalOffset()
-			height: group.raw.height
-
-		@setInnerSize group.$fieldDom, 
-			x: @arraySum(range.getOuterWidth() for range in @ranges)
-			y: @arraySum(line.getOuterHeight() for line in group.getLines())
-
-	buildFieldLines: (group)->
-		@buildFieldLine line for line in group.getLines()
-
-	buildFieldLine: (line)->
-		$line = @addDom 'line', line.getGroup().$fieldDom
-		render = line.fieldRender ? @config.field.lines.render
-		$line.html render line
-		@placeFieldLine $line, line
-
-	renderFieldLine: (line)->
-		''
-
-	placeFieldLine: ($line, line)->
-		$line.css
-			top: line.getVerticalOffset()
-			height: line.getInnerHeight()
-
-	buildFieldRanges: (group)->
-		@buildFieldRange range, group for range in @ranges
-
-	buildFieldRange: (range, group)->
-		$range = @addDom 'range', group.$fieldDom
-		render = range.fieldRender ? @config.field.ranges.render
-		$range.html render range
-		@placeFieldRange $range, range
-
-	renderFieldRange: (range)->
-		''
-
-	placeFieldRange: ($range, range)->
-		$range.css
-			left: range.getOffset()
-			width: range.getInnerWidth()
-
-	buildFieldDashes: (group)->
-		@buildFieldDash dash, group for dash in @calcDashes()
-
-	buildFieldDash: (dash, group)->
-		dash.$fieldDom = @addDom 'dash', group.$fieldDom
-		dash.$fieldDom.addClass "id-#{dash.rule.id}"
-		@placeFieldDash dash
-
-	placeFieldDash: (dash)->
-		offset = @getOffset dash.time
-		if offset?
-			dash.$fieldDom.css left: offset
+		group.build() for group in @groups
 
 	buildFieldItems: (group)->
 		item.build() for item in @items when item.getLine().raw.groupId is group.raw.id
