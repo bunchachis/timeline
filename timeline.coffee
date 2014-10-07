@@ -73,17 +73,8 @@ class Timeline
 	getDefaultConfig: ->
 		ruler:
 			position: 'top'
-			ranges:
-				render: $.proxy @, 'renderRulerRange'
 		sidebar:
 			position: 'left'
-			lines:
-				render: $.proxy @, 'renderSidebarLine'
-		field:
-			lines:
-				render: $.proxy @, 'renderFieldLine'
-			ranges:
-				render: $.proxy @, 'renderFieldRange'
 		range:
 			extraOffset: 
 				before: 5
@@ -100,6 +91,8 @@ class Timeline
 			extraOffset:
 				before: 5
 				after: 10
+			render: null
+			renderAtSidebar: null
 		item:
 			isDraggable: true
 			canCrossRanges: true
@@ -322,6 +315,7 @@ class Timeline.Group extends Timeline.Element
 			{axis: 'x', getTarget: => [@timeline.$ruler].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
 			{axis: 'y', getTarget: => @$sidebarDom}
 		]
+		@render()
 		@place()
 
 		@buildLines()
@@ -329,7 +323,16 @@ class Timeline.Group extends Timeline.Element
 		@buildDashes()
 		@buildItems()
 
+	render: ->
+		(@raw.render ? @cfg().group.render ? @constructor.render).call @
+
+	@render: ->
+		@$dom.empty()
+
 	place: ->
+		(@raw.place ? @cfg().group.place ? @constructor.place).call @
+
+	@place: ->
 		@$dom.css
 			top : @getVerticalOffset()
 			height: @raw.height
