@@ -6,6 +6,10 @@ class Timeline
 	constructor: (container, config = {}, items = [])->
 		@$container = $ container
 		@config = $.extend yes, @getDefaultConfig(), config
+
+		@sidebar = @createElement 'Sidebar'
+		@ruler = @createElement 'Ruler'
+		@field = @createElement 'Field'
 		
 		@ranges = []
 		@addRange range for range in @config.ranges
@@ -24,7 +28,7 @@ class Timeline
 
 		@build()
 
-	createElement: (type, data)->
+	createElement: (type, data = {})->
 		new @constructor[type] @, data 
 
 	addRange: (range)->
@@ -167,45 +171,9 @@ class Timeline
 
 	build: ->
 		@$root = @addDom 'root', @$container
-		@buildSidebar()
-		@buildRuler()
-		@buildField()
-
-	buildRuler: ->
-		@$ruler = @addDom 'ruler', @$root
-		@scrollize @$ruler, 'x', [{axis: 'x', getTarget: => group.$dom for group in @groups}]
-		@placeRuler()
-		
-		@buildRulerRanges()
-		@buildRulerDashes()
-
-	placeRuler: ->
-		@$ruler.css if @config.sidebar.position is 'left'
-			left: @config.sidebar.width
-			right: 0
-		else 
-			left: 0
-			right: @config.sidebar.width
-
-		@$ruler.css if @config.ruler.position is 'top'
-			top: 0
-			bottom: 'auto'
-		else 
-			top: 'auto'
-			bottom: 0
-
-		@$ruler.css 
-			height: @config.ruler.height
-
-		@setInnerSize @$ruler, 
-			x: @arraySum(range.getOuterWidth() for range in @ranges)
-			y: @config.ruler.height
-
-	buildRulerRanges: ->
-		range.buildAtRuler() for range in @ranges
-
-	buildRulerDashes: ->
-		dash.buildAtRuler() for dash in @calcDashes()
+		@sidebar.build()
+		@ruler.build()
+		@field.build()
 
 	getOffset: (time)->	
 		if time?
@@ -240,33 +208,6 @@ class Timeline
 			time += rule.step
 		dashes
 
-	buildSidebar: ->
-		@$sidebar = @addDom 'sidebar', @$root
-		@placeSidebar()
-
-		@buildSidebarGroups()
-
-	placeSidebar: ->
-		@$sidebar.css if @config.ruler.position is 'top'
-			top: @config.ruler.height
-			bottom: 0
-		else 
-			top: 0
-			bottom: @config.ruler.height
-
-		@$sidebar.css if @config.sidebar.position is 'left'
-			left: 0
-			right: 'auto'
-		else 
-			left: 'auto'
-			right: 0
-
-		@$sidebar.css 
-			width: @config.sidebar.width
-
-	buildSidebarGroups: ->
-		group.buildAtSidebar() for group in @groups
-
 	getLineById: (lineId)->
 		for line in @lines
 			if line.raw.id is lineId
@@ -276,30 +217,6 @@ class Timeline
 		for group in @groups
 			if group.raw.id is groupId
 				return group
-
-	buildField: ->
-		@$field = @addDom 'field', @$root
-		@placeField()
-
-		@buildFieldGroups()
-
-	placeField: ->
-		@$field.css if @config.ruler.position is 'top'
-			top: @config.ruler.height
-			bottom: 0
-		else 
-			top: 0
-			bottom: @config.ruler.height
-
-		@$field.css if @config.sidebar.position is 'left'
-			left: @config.sidebar.width
-			right: 0
-		else 
-			left: 0
-			right: @config.sidebar.width
-
-	buildFieldGroups: ->
-		group.build() for group in @groups
 
 	approxOffset: (offset)->
 		@getOffset @approxTime @getTime offset
@@ -340,13 +257,103 @@ class Timeline
 
 
 class Timeline.Element
-	constructor: (@timeline, @raw)->
+	constructor: (@timeline, @raw = {})->
 		@init()
 
 	init: ->
 
 	cfg: ->
 		@timeline.config
+
+class Timeline.Sidebar extends Timeline.Element
+	build: ->
+		@$dom = @timeline.addDom 'sidebar', @timeline.$root
+		@place()
+
+		@buildGroups()
+
+	place: ->
+		@$dom.css if @cfg().ruler.position is 'top'
+			top: @cfg().ruler.height
+			bottom: 0
+		else 
+			top: 0
+			bottom: @cfg().ruler.height
+
+		@$dom.css if @cfg().sidebar.position is 'left'
+			left: 0
+			right: 'auto'
+		else 
+			left: 'auto'
+			right: 0
+
+		@$dom.css 
+			width: @cfg().sidebar.width
+
+	buildGroups: ->
+		group.buildAtSidebar() for group in @timeline.groups
+
+class Timeline.Ruler extends Timeline.Element
+	build: ->
+		@$dom = @timeline.addDom 'ruler', @timeline.$root
+		@timeline.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
+		@place()
+		
+		@buildRanges()
+		@buildDashes()
+
+	place: ->
+		@$dom.css if @cfg().sidebar.position is 'left'
+			left: @cfg().sidebar.width
+			right: 0
+		else 
+			left: 0
+			right: @cfg().sidebar.width
+
+		@$dom.css if @cfg().ruler.position is 'top'
+			top: 0
+			bottom: 'auto'
+		else 
+			top: 'auto'
+			bottom: 0
+
+		@$dom.css 
+			height: @cfg().ruler.height
+
+		@timeline.setInnerSize @$dom, 
+			x: @timeline.arraySum(range.getOuterWidth() for range in @timeline.ranges)
+			y: @cfg().ruler.height
+
+	buildRanges: ->
+		range.buildAtRuler() for range in @timeline.ranges
+
+	buildDashes: ->
+		dash.buildAtRuler() for dash in @timeline.calcDashes()
+
+class Timeline.Field extends Timeline.Element
+	build: ->
+		@$dom = @timeline.addDom 'field', @timeline.$root
+		@place()
+
+		@buildGroups()
+
+	place: ->
+		@$dom.css if @cfg().ruler.position is 'top'
+			top: @cfg().ruler.height
+			bottom: 0
+		else 
+			top: 0
+			bottom: @cfg().ruler.height
+
+		@$dom.css if @cfg().sidebar.position is 'left'
+			left: @cfg().sidebar.width
+			right: 0
+		else 
+			left: 0
+			right: @cfg().sidebar.width
+
+	buildGroups: ->
+		group.build() for group in @timeline.groups
 
 class Timeline.Group extends Timeline.Element
 	getLines: ->
@@ -368,9 +375,9 @@ class Timeline.Group extends Timeline.Element
 		@timeline.config.group.extraOffset.after
 
 	build: ->
-		@$dom = @timeline.addDom 'group', @timeline.$field
+		@$dom = @timeline.addDom 'group', @timeline.field.$dom
 		@timeline.scrollize @$dom, 'xy', [
-			{axis: 'x', getTarget: => [@timeline.$ruler].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
+			{axis: 'x', getTarget: => [@timeline.ruler.$dom].concat(elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)},
 			{axis: 'y', getTarget: => @$sidebarDom}
 		]
 		@render()
@@ -412,7 +419,7 @@ class Timeline.Group extends Timeline.Element
 		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
 
 	buildAtSidebar: ->
-		@$sidebarDom = @timeline.addDom 'group', @timeline.$sidebar
+		@$sidebarDom = @timeline.addDom 'group', @timeline.sidebar.$dom
 		@timeline.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
 		@placeAtSidebar()
 
@@ -485,7 +492,7 @@ class Timeline.Range extends Timeline.Element
 			width: @getInnerWidth()
 
 	buildAtRuler: ->
-		@$rulerDom = @timeline.addDom 'range', @timeline.$ruler
+		@$rulerDom = @timeline.addDom 'range', @timeline.ruler.$dom
 		@renderAtRuler()
 		@placeAtRuler()
 
@@ -532,7 +539,7 @@ class Timeline.Dash extends Timeline.Element
 			$dom.css left: offset
 
 	buildAtRuler: (dash)->
-		@$rulerDom = @timeline.addDom 'dash', @timeline.$ruler
+		@$rulerDom = @timeline.addDom 'dash', @timeline.ruler.$dom
 		@$rulerDom.addClass "id-#{@raw.rule.id}"
 		@renderAtRuler()
 		@placeAtRuler()
