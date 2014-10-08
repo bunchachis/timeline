@@ -119,13 +119,44 @@
 				position: absolute;
 				background: pink;
 
+				.tl-resizer-right {
+					position: absolute;
+					top: 0;
+					bottom: 0;
+					right: 0;
+					width: 5px;
+					background: red;
+					cursor: e-resize;
+				}
+
+				.tl-resizer-left {
+					position: absolute;
+					top: 0;
+					bottom: 0;
+					left: 0;
+					width: 5px;
+					background: red;
+					cursor: w-resize;
+				}
 			}
 
 			.ui-draggable-dragging {
 				background: rgba(0, 0, 0, 0.2);
 			}
 
+			.u2i-resizable-resizing {
+				background: rgba(0, 0, 0, 0.2);
+			}
+
 			.tl-drag-hint {
+				position: absolute;
+				height: 20px;
+				line-height: 20px;
+				background: yellow;
+				margin-left: 16px;
+			}
+
+			.tl-resize-hint {
 				position: absolute;
 				height: 20px;
 				line-height: 20px;

@@ -36,8 +36,6 @@ class Sized
 				siblings = parent.getChildrenElements()
 				for sibling in siblings
 					siblingVerb = sibling.getSize 'Raw', axis
-					log sibling
-					log siblingVerb
 					if $.type(siblingVerb) is 'string' and siblingVerb.indexOf('part') > -1
 						totalParts += parseInt siblingVerb 
 					else
@@ -878,6 +876,8 @@ class Timeline.Item extends Timeline.Element
 		@render()
 		@place()
 		@makeDraggable()
+		@makeResizeableLeft()
+		@makeResizeableRight()
 
 	render: ->
 		(@raw.render ? @cfg().render ? @constructor.render).call @
@@ -932,23 +932,6 @@ class Timeline.Item extends Timeline.Element
 					$.extend @raw, modified.raw
 					@place()
 
-	canChangeTo: (modified)->
-		(@raw.canChangeTo ? @cfg().canChangeTo ? @constructor.canChangeTo).call @, modified
-
-	@canChangeTo: (modified)->
-		yes
-
-	isValid: ->
-		rangeFrom = @timeline.getRangeByTime @raw.from
-		return no if !rangeFrom?
-
-		rangeTo = @timeline.getRangeByTime @raw.to - 1
-		return no if !rangeTo?
-
-		return no if !@canCrossRanges() and rangeFrom isnt rangeTo
-
-		yes
-
 	renderDragHint: (dragInfo)->
 		(@raw.renderDragHint ? @cfg().renderDragHint ? @constructor.renderDragHint).call @, dragInfo
 
@@ -964,6 +947,132 @@ class Timeline.Item extends Timeline.Element
 		@$dragHint.css
 			left: dragInfo.event.pageX - dragInfo.parentOffset.left
 			top: dragInfo.event.pageY - dragInfo.parentOffset.top
+
+	makeResizeableLeft: ->
+		$resizerLeft = Misc.addDom 'resizer-left', @$dom
+		@$resizeHint = null
+		modified = null
+		originalDomOffset = null
+		originalDomWidth = null
+
+		$resizerLeft.draggable
+			axis: 'x'
+			helper: =>
+				$('<div />').css
+					width: $resizerLeft.css 'width'
+					height: $resizerLeft.css 'height'
+			start: (e, ui)=>
+				@$resizeHint = Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				modified = $.extend yes, {}, @
+				originalDomOffset = @timeline.getOffset @raw.from
+				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
+			stop: (e, ui)=>
+				@$resizeHint.remove()
+				modified = null
+				originalDomOffset = null
+				originalDomWidth = null
+			drag: (e, ui)=>
+				group = @getLine().getGroup()
+				
+				resizeInfo = 
+					parentOffset: Misc.getScrollContainer(group.$dom).offset()
+					event: e
+					ui: ui
+					left: originalDomOffset + (ui.position.left - ui.originalPosition.left)
+					width: originalDomWidth - (ui.position.left - ui.originalPosition.left)
+					side: 'left'
+				 
+				@renderResizeHint resizeInfo
+				@placeResizeHint resizeInfo
+				
+				modified.raw.from = @timeline.approxTime @timeline.getTime resizeInfo.left
+				
+				if modified.isValid() and @canChangeTo modified
+					$.extend @raw, modified.raw
+					@place()
+
+	makeResizeableRight: ->
+		$resizerRight = Misc.addDom 'resizer-right', @$dom
+		@$resizeHint = null
+		modified = null
+		originalDomOffset = null
+		originalDomWidth = null
+
+		$resizerRight.draggable
+			axis: 'x'
+			helper: =>
+				$('<div />').css
+					width: $resizerRight.css 'width'
+					height: $resizerRight.css 'height'
+			start: (e, ui)=>
+				@$resizeHint = Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				modified = $.extend yes, {}, @
+				originalDomOffset = @timeline.getOffset @raw.from
+				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
+			stop: (e, ui)=>
+				@$resizeHint.remove()
+				modified = null
+				originalDomOffset = null
+				originalDomWidth = null
+			drag: (e, ui)=>
+				group = @getLine().getGroup()
+				
+				resizeInfo = 
+					parentOffset: Misc.getScrollContainer(group.$dom).offset()
+					event: e
+					ui: ui
+					left: originalDomOffset
+					width: originalDomWidth + (ui.position.left - ui.originalPosition.left)
+					side: 'right'
+				 
+				@renderResizeHint resizeInfo
+				@placeResizeHint resizeInfo
+				
+				modified.raw.to = @timeline.approxTime @timeline.getTime resizeInfo.left + resizeInfo.width
+				
+				if modified.isValid() and @canChangeTo modified
+					$.extend @raw, modified.raw
+					@place()
+
+	renderResizeHint: (resizeInfo)->
+		(@raw.renderResizeHint ? @cfg().renderResizeHint ? @constructor.renderResizeHint).call @, resizeInfo
+
+	@renderResizeHint: (resizeInfo)->
+		offset = if resizeInfo.side is 'left'
+			resizeInfo.left
+		else 
+			resizeInfo.left + resizeInfo.width
+
+		time = @timeline.approxTime @timeline.getTime offset
+		if time?
+			@$resizeHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+
+	placeResizeHint: (resizeInfo)->
+		(@raw.placeResizeHint ? @cfg().placeResizeHint ? @constructor.placeResizeHint).call @, resizeInfo
+
+	@placeResizeHint: (resizeInfo)-> 
+		@$resizeHint.css
+			left: resizeInfo.event.pageX - resizeInfo.parentOffset.left
+			top: resizeInfo.event.pageY - resizeInfo.parentOffset.top
+
+	canChangeTo: (modified)->
+		(@raw.canChangeTo ? @cfg().canChangeTo ? @constructor.canChangeTo).call @, modified
+
+	@canChangeTo: (modified)->
+		yes
+
+	isValid: ->
+		return no if @raw.from >= @raw.to
+		 
+		rangeFrom = @timeline.getRangeByTime @raw.from
+		return no if !rangeFrom?
+
+		rangeTo = @timeline.getRangeByTime @raw.to - 1
+		return no if !rangeTo?
+
+		return no if !@canCrossRanges() and rangeFrom isnt rangeTo
+
+		yes
 
 
 window.Timeline = Timeline
