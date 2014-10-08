@@ -1,13 +1,76 @@
 log = (x)-> console.log(x)
 
-# All ranges is [from, to)
+mixOf = (base, mixins...) ->
+	class Mixed extends base
+		for mixin in mixins by -1 # earlier mixins override later ones
+			for name, method of mixin::
+				Mixed::[name] = method
+	Mixed
 
-class Timeline
+class Sized
+	getSize: (type, axis)->
+		@['get' + type + axis]()
+
+	calcSize: (axis)->
+		verb = @['getRaw' + axis]()
+		isString = $.type(verb) is 'string'
+		if verb is 'auto'
+			Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements())
+		else if $.type(verb) is 'number'
+			verb
+		else if isString and verb.indexOf('px') > -1
+			parseInt verb 
+		else if isString and verb.indexOf('%') > -1 
+			percents = parseInt verb
+			parent = @getParentElement
+			innerSpace = if parent? then parent.getSize 'Inner', axis else 0
+			Math.round(innerSpace * percents / 100)
+		else if isString and verb.indexOf('part') > -1 
+			parts = parseInt verb
+			totalParts = 0
+			children = @getChildrenElements()
+			parent = @getParentElement()
+			remainingSpace = if parent? then parent.getSize 'Inner', axis else 0
+			for child in children
+				childVerb = child.getSize 'Raw', axis
+				if $.type(childVerb) is 'string' and childVerb.indexOf('part') > -1
+					totalParts += parseInt childVerb 
+				else
+					remainingSpace -= child.getSize 'Outer', axis
+				
+			Math.round(remainingSpace * parts / totalParts)
+
+	getParentElement: ->
+
+	getChildrenElements: ->
+		[]
+
+	getRawHeight: ->
+		'auto'
+
+	getInnerHeight: ->
+		@calcSize 'Height'
+
+	getOuterHeight: ->
+		@getInnerHeight() +
+		@getExtraOffsetBefore() +
+		@getExtraOffsetAfter()
+
+	getExtraOffsetBefore: ->
+		0
+
+	getExtraOffsetAfter: ->
+		0
+
+	doesSizeDependOnParent: ->
+		verb = @getRawHeight()
+		$.type(verb) is 'string' and (verb.indexOf('part') > -1 or verb.indexOf('%') > -1)
+
+class Timeline extends Sized
 	constructor: (container, config = {}, items = [])->
 		@$container = $ container
+		@container = Timeline.Container @$container
 		@config = $.extend yes, @getDefaultConfig(), config
-
-		@util = new Timeline.Util
 
 		@sidebar = @createElement 'Sidebar'
 		@ruler = @createElement 'Ruler'
@@ -27,6 +90,8 @@ class Timeline
 
 		@items = []
 		@addItem item for item in items
+
+		@checkVerticalFitting()
 
 		@build()
 
@@ -101,10 +166,10 @@ class Timeline
 			renderAtRuler: null
 			placeAtRuler: null
 		group:
-			height: 500
+			height: 'auto'
 			extraOffset:
-				before: 20
-				after: 20
+				before: 5
+				after: 5
 			render: null
 			place: null
 		line:
@@ -125,16 +190,26 @@ class Timeline
 			render: null
 			place: null
 		scale: 1
+		height: 'auto'
 		dashRules: []
 		ranges: []
 		groups: []
 		lines: []
 
 	build: ->
-		@$root = @util.addDom 'root', @$container
+		@$root = Misc.addDom 'root', @$container
+		@render()
+		@place()
+
 		@sidebar.build()
 		@ruler.build()
 		@field.build()
+
+	render: ->
+
+	place: ->
+		@$root.css
+			height: @getInnerHeight()
 
 	calcDashes: ->
 		dashes = []
@@ -215,14 +290,29 @@ class Timeline
 					approxed = Math.floor(time / snapResolution) * snapResolution
 					approxed if @getRangeByTime approxed
 
-class Timeline.Util
-	addDom: (name, $container)->
+	checkVerticalFitting: ->
+		if @getRawHeight() is 'auto'
+			for group in @groups when group.doesSizeDependOnParent()
+				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
+
+	getParentElement: ->
+		@container
+
+	getChildrenElements: ->
+		@groups.concat [@ruler]
+
+	getRawHeight: ->
+		@config.height ? 'auto'
+
+
+class Misc
+	@addDom: (name, $container)->
 		$element = $('<div />').addClass "tl-#{name}"
 		if $container
 			$element.appendTo @getScrollContainer $container
 		$element
 
-	scrollize: ($element, axis, pairs = [])->
+	@scrollize: ($element, axis, pairs = [])->
 		$inner = @addDom 'scroll-inner', $element
 		$element.data 'scroll-inner', $inner
 
@@ -254,7 +344,7 @@ class Timeline.Util
 
 		$element.mCustomScrollbar config
 
-	getScrollContainer: ($element)->
+	@getScrollContainer: ($element)->
 		$inner = $element.data 'scroll-inner'
 
 		if $inner?.length
@@ -262,33 +352,59 @@ class Timeline.Util
 		else
 			$element
 
-	setInnerSize: ($element, size)->
+	@setInnerSize: ($element, size)->
 		css = {}
 		css.width = size.x if size.x
 		css.height = size.y if size.y
 		@getScrollContainer($element).css css
 		$element.mCustomScrollbar 'update'
 
-	arraySum: (array)->
+	@sum: (array)->
 		sum = 0
 		sum += value for value in array
 		sum
 
-class Timeline.Element
+
+class Timeline.Element extends Sized
 	constructor: (@timeline, @raw = {})->
+		@className = @getClassName()
 		@init()
+
+	getClassName: ->
+		''
 
 	init: ->
 
 	cfg: ->
-		@timeline.config
+		@timeline.config[@className] ? {}
 
-	u: ->
-		@timeline.util
+	getRawHeight: ->
+		@raw.height ? @cfg().height ? 'auto'
+
+	getExtraOffsetBefore: ->
+		@raw.extraOffsetBefore ? @cfg().extraOffset?.before ? 0
+
+	getExtraOffsetAfter: ->
+		@raw.extraOffsetAfter ? @cfg().extraOffset?.after ? 0
+
+class Timeline.Container extends Sized
+	getClassName: ->
+		'container'
+
+	constructor: ($dom)->
+
+	getRawHeight: ->
+		0
+
+	getInnerHeight: ->
+		$dom.innerHeight()
 
 class Timeline.Sidebar extends Timeline.Element
+	getClassName: ->
+		'sidebar'
+
 	isVisible: ->
-		@raw.isVisible ? @cfg().sidebar.isVisible ? yes
+		@raw.isVisible ? @cfg().isVisible ? yes
 
 	getOuterWidth: ->
 		if @isVisible()
@@ -298,34 +414,34 @@ class Timeline.Sidebar extends Timeline.Element
 
 	getInnerWidth: ->
 		if @isVisible()
-			@raw.width ? @cfg().sidebar.width ? 100
+			@raw.width ? @cfg().width ? 100
 		else
 			0
 
 	build: ->
-		@$dom = @u().addDom 'sidebar', @timeline.$root
+		@$dom = Misc.addDom 'sidebar', @timeline.$root
 		@render()
 		@place()
 
 		@buildGroups()
 
 	render: ->
-		(@raw.render ? @cfg().sidebar.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().sidebar.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
-		@$dom.css if @cfg().ruler.position is 'top'
+		@$dom.css if @timeline.config.ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
 			bottom: @timeline.ruler.getOuterHeight()
 
-		@$dom.css if @cfg().sidebar.position is 'left'
+		@$dom.css if @cfg().position is 'left'
 			left: 0
 			right: 'auto'
 		else 
@@ -339,8 +455,11 @@ class Timeline.Sidebar extends Timeline.Element
 		group.buildAtSidebar() for group in @timeline.groups
 
 class Timeline.Ruler extends Timeline.Element
+	getClassName: ->
+		'ruler'
+
 	isVisible: ->
-		@raw.isVisible ? @cfg().ruler.isVisible ? yes
+		@raw.isVisible ? @cfg().isVisible ? yes
 
 	getOuterHeight: ->
 		if @isVisible()
@@ -350,13 +469,13 @@ class Timeline.Ruler extends Timeline.Element
 
 	getInnerHeight: ->
 		if @isVisible()
-			@raw.height ? @cfg().ruler.height ? 50
+			@raw.height ? @cfg().height ? 50
 		else
 			0
 
 	build: ->
-		@$dom = @u().addDom 'ruler', @timeline.$root
-		@u().scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
+		@$dom = Misc.addDom 'ruler', @timeline.$root
+		Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
 		@render()
 		@place()
 		
@@ -364,22 +483,22 @@ class Timeline.Ruler extends Timeline.Element
 		@buildDashes()
 
 	render: ->
-		(@raw.render ? @cfg().ruler.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().ruler.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
-		@$dom.css if @cfg().sidebar.position is 'left'
+		@$dom.css if @timeline.config.sidebar.position is 'left'
 			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
 			left: 0
 			right: @timeline.sidebar.getOuterWidth()
 
-		@$dom.css if @cfg().ruler.position is 'top'
+		@$dom.css if @cfg().position is 'top'
 			top: 0
 			bottom: 'auto'
 		else 
@@ -389,8 +508,8 @@ class Timeline.Ruler extends Timeline.Element
 		@$dom.css 
 			height: @timeline.ruler.getInnerHeight()
 
-		@u().setInnerSize @$dom, 
-			x: @u().arraySum(range.getOuterWidth() for range in @timeline.ranges)
+		Misc.setInnerSize @$dom, 
+			x: Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
 			y: @timeline.ruler.getInnerHeight()
 
 	buildRanges: ->
@@ -400,30 +519,33 @@ class Timeline.Ruler extends Timeline.Element
 		dash.buildAtRuler() for dash in @timeline.calcDashes()
 
 class Timeline.Field extends Timeline.Element
+	getClassName: ->
+		'field'
+
 	build: ->
-		@$dom = @u().addDom 'field', @timeline.$root
+		@$dom = Misc.addDom 'field', @timeline.$root
 		@render()
 		@place()
 
 		@buildGroups()
 
 	render: ->
-		(@raw.render ? @cfg().field.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().field.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
-		@$dom.css if @cfg().ruler.position is 'top'
+		@$dom.css if @timeline.config.ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
 			bottom: @timeline.ruler.getOuterHeight()
 
-		@$dom.css if @cfg().sidebar.position is 'left'
+		@$dom.css if @timeline.config.sidebar.position is 'left'
 			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
@@ -434,27 +556,36 @@ class Timeline.Field extends Timeline.Element
 		group.build() for group in @timeline.groups
 
 class Timeline.Group extends Timeline.Element
+	getClassName: ->
+		'group'
+
 	getLines: ->
 		line for line in @timeline.lines when line.raw.groupId is @raw.id
 
 	getVerticalOffset: ->
-		x = @u().arraySum(
+		x = Misc.sum(
 			for elseGroup in @timeline.groups
 				break if elseGroup.raw.id is @raw.id
 				elseGroup.getOuterHeight() 
 		)
 
-	getInnerHeight: ->
-		@raw.height ? @cfg().group.height
+	getParentElement: ->
+		@timeline
+
+	getChildrenElements: ->
+		@getLines()
+
+	getExtraOffsetBefore: ->
+		@raw.extraOffsetBefore ? @cfg().extraOffset.before ? 0
 
 	getOuterHeight: ->
 		@getInnerHeight() +
-		@cfg().group.extraOffset.before +
-		@cfg().group.extraOffset.after
+		@cfg().extraOffset.before +
+		@cfg().extraOffset.after
 
 	build: ->
-		@$dom = @u().addDom 'group', @timeline.field.$dom
-		@u().scrollize @$dom, 'xy', [
+		@$dom = Misc.addDom 'group', @timeline.field.$dom
+		Misc.scrollize @$dom, 'xy', [
 			{axis: 'x', getTarget: => 
 				targets = (elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)
 				targets.push @timeline.ruler.$dom if @timeline.ruler.$dom?
@@ -471,21 +602,21 @@ class Timeline.Group extends Timeline.Element
 		@buildItems()
 
 	render: ->
-		(@raw.render ? @cfg().group.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().group.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
 		@$dom.css
 			top : @getVerticalOffset()
 			height: @raw.height
 
-		@u().setInnerSize @$dom, 
-			x: @u().arraySum(range.getOuterWidth() for range in @timeline.ranges)
-			y: @u().arraySum(line.getOuterHeight() for line in @getLines())
+		Misc.setInnerSize @$dom, 
+			x: Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
+			y: Misc.sum(line.getOuterHeight() for line in @getLines())
 
 	buildLines: ->
 		line.build() for line in @getLines()
@@ -500,49 +631,52 @@ class Timeline.Group extends Timeline.Element
 		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
 
 	buildAtSidebar: ->
-		@$sidebarDom = @u().addDom 'group', @timeline.sidebar.$dom
-		@u().scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
+		@$sidebarDom = Misc.addDom 'group', @timeline.sidebar.$dom
+		Misc.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
 		@renderAtSidebar()
 		@placeAtSidebar()
 
 		@buildLinesAtSidebar()
 
 	renderAtSidebar: ->
-		(@raw.renderAtSidebar ? @cfg().group.renderAtSidebar ? @constructor.renderAtSidebar).call @
+		(@raw.renderAtSidebar ? @cfg().renderAtSidebar ? @constructor.renderAtSidebar).call @
 
 	@renderAtSidebar: ->
 
 	placeAtSidebar: ->
-		(@raw.placeAtSidebar ? @cfg().group.placeAtSidebar ? @constructor.placeAtSidebar).call @
+		(@raw.placeAtSidebar ? @cfg().placeAtSidebar ? @constructor.placeAtSidebar).call @
 
 	@placeAtSidebar: ->
 		@$sidebarDom.css
 			top : @getVerticalOffset()
 			height: @raw.height
 
-		@u().setInnerSize @$sidebarDom,
+		Misc.setInnerSize @$sidebarDom,
 			x: @timeline.sidebar.getInnerWidth()
-			y: @u().arraySum(line.getOuterHeight() for line in @getLines())
+			y: Misc.sum(line.getOuterHeight() for line in @getLines())
 
 	buildLinesAtSidebar: ->
 		line.buildAtSidebar() for line in @getLines()
 
 class Timeline.Range extends Timeline.Element
+	getClassName: ->
+		'range'
+
 	init: ->
 		@$doms = []
 
 	getOffset: ->
-		@u().arraySum(
+		Misc.sum(
 			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
 				elseRange.getOuterWidth() 
 		)
 
 	getInternalOffset: (time)->
 		@getExtraOffsetBefore() +
-		Math.ceil(time / @cfg().scale) - Math.ceil(@raw.from / @cfg().scale)
+		Math.ceil(time / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
 
 	getInnerWidth: ->
-		Math.ceil(@raw.to / @cfg().scale) - Math.ceil(@raw.from / @cfg().scale)
+		Math.ceil(@raw.to / @timeline.config.scale) - Math.ceil(@raw.from / @timeline.config.scale)
 
 	getOuterWidth: ->
 		@getInnerWidth() +
@@ -550,30 +684,30 @@ class Timeline.Range extends Timeline.Element
 		@getExtraOffsetAfter()
 
 	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().range.extraOffset.before
+		@raw.extraOffsetBefore ? @cfg().extraOffset.before
 
 	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @cfg().range.extraOffset.after
+		@raw.extraOffsetAfter ? @cfg().extraOffset.after
 
 	getTimeByOffset: (offset)->
 		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
 
 	getTimeByInternalOffset: (internalOffset)->
-		@raw.from + internalOffset * @cfg().scale
+		@raw.from + internalOffset * @timeline.config.scale
 
 	build: (group)->
-		$dom = @u().addDom 'range', group.$dom
+		$dom = Misc.addDom 'range', group.$dom
 		@$doms.push $dom
 		@render $dom
 		@place $dom
 
 	render: ($dom)->
-		(@raw.render ? @cfg().range.render ? @constructor.render).call @, $dom
+		(@raw.render ? @cfg().render ? @constructor.render).call @, $dom
 
 	@render: ($dom)->
 
 	place: ($dom)->
-		(@raw.place ? @cfg().range.place ? @constructor.place).call @, $dom
+		(@raw.place ? @cfg().place ? @constructor.place).call @, $dom
 
 	@place: ($dom)->
 		$dom.css
@@ -581,20 +715,20 @@ class Timeline.Range extends Timeline.Element
 			width: @getInnerWidth()
 
 	buildAtRuler: ->
-		@$rulerDom = @u().addDom 'range', @timeline.ruler.$dom
+		@$rulerDom = Misc.addDom 'range', @timeline.ruler.$dom
 		@renderAtRuler()
 		@placeAtRuler()
 
 	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().range.renderAtRuler ? @constructor.renderAtRuler).call @
+		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
 		from = moment.unix(@raw.from).format('DD.MM.YYYY HH:mm:ss')
 		to = moment.unix(@raw.to).format('DD.MM.YYYY HH:mm:ss')
-		@$rulerDom.empty().append @u().addDom('heading').text "#{from} — #{to}"
+		@$rulerDom.empty().append Misc.addDom('heading').text "#{from} — #{to}"
 
 	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().range.placeAtRuler ? @constructor.placeAtRuler).call @
+		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
 
 	@placeAtRuler: ->
 		@$rulerDom.css
@@ -603,24 +737,27 @@ class Timeline.Range extends Timeline.Element
 
 
 class Timeline.Dash extends Timeline.Element
+	getClassName: ->
+		'dash'
+
 	init: ->
 		@$doms = []
 
 	build: (group)->
-		$dom = @u().addDom 'dash', group.$dom
+		$dom = Misc.addDom 'dash', group.$dom
 		$dom.addClass "id-#{@raw.rule.id}"
 		@$doms.push $dom
 		@render $dom
 		@place $dom
 
 	render: ($dom)->
-		(@raw.render ? @cfg().dash.render ? @constructor.render).call @, $dom
+		(@raw.render ? @cfg().render ? @constructor.render).call @, $dom
 
 	@render: ($dom)->
 		$dom.empty()
 
 	place: ($dom)->
-		(@raw.place ? @cfg().dash.place ? @constructor.place).call @, $dom
+		(@raw.place ? @cfg().place ? @constructor.place).call @, $dom
 
 	@place: ($dom)->
 		offset = @timeline.getOffset @raw.time
@@ -628,18 +765,18 @@ class Timeline.Dash extends Timeline.Element
 			$dom.css left: offset
 
 	buildAtRuler: (dash)->
-		@$rulerDom = @u().addDom 'dash', @timeline.ruler.$dom
+		@$rulerDom = Misc.addDom 'dash', @timeline.ruler.$dom
 		@$rulerDom.addClass "id-#{@raw.rule.id}"
 		@renderAtRuler()
 		@placeAtRuler()
 
 	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().dash.renderAtRuler ? @constructor.renderAtRuler).call @
+		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
 
 	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().dash.placeAtRuler ? @constructor.placeAtRuler).call @
+		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
 
 	@placeAtRuler: ->
 		offset = @timeline.getOffset @raw.time
@@ -647,8 +784,11 @@ class Timeline.Dash extends Timeline.Element
 			@$rulerDom.css left: offset
 
 class Timeline.Line extends Timeline.Element
+	getClassName: ->
+		'line'
+
 	getVerticalOffset: ->
-		@u().arraySum(
+		Misc.sum(
 			for elseLine in @timeline.lines when elseLine.raw.groupId is @raw.groupId
 				break if elseLine.raw.id is @raw.id
 				elseLine.getOuterHeight() 
@@ -657,8 +797,14 @@ class Timeline.Line extends Timeline.Element
 	getInternalVerticalOffset: ->
 		@getExtraOffsetBefore()	
 
+	getParentElement: ->
+		@getGroup()
+
+	getRawHeight: ->
+		@raw.height ? @cfg().height ? 0
+
 	getInnerHeight: ->
-		@raw.height ? @cfg().line.height
+		@calcSize 'Height'
 
 	getOuterHeight: ->
 		@getInnerHeight() +
@@ -669,24 +815,24 @@ class Timeline.Line extends Timeline.Element
 		@timeline.getGroupById @raw.groupId
 
 	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().line.extraOffset.before
+		@raw.extraOffsetBefore ? @cfg().extraOffset.before
 
 	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @cfg().line.extraOffset.after
+		@raw.extraOffsetAfter ? @cfg().extraOffset.after
 
 	build: ->
-		@$dom = @u().addDom 'line', @getGroup().$dom
+		@$dom = Misc.addDom 'line', @getGroup().$dom
 		@render()
 		@place()
 
 	render: ->
-		(@raw.render ? @cfg().line.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
 		@$dom.empty()
 
 	place: ->
-		(@raw.place ? @cfg().line.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
 		@$dom.css
@@ -694,18 +840,18 @@ class Timeline.Line extends Timeline.Element
 			height: @getInnerHeight()
 
 	buildAtSidebar: ->
-		@$sidebarDom = @u().addDom 'line', @getGroup().$sidebarDom
+		@$sidebarDom = Misc.addDom 'line', @getGroup().$sidebarDom
 		@renderAtSidebar()
 		@placeAtSidebar()
 
 	renderAtSidebar: ->
-		(@raw.renderAtSidebar ? @cfg().line.renderAtSidebar ? @constructor.renderAtSidebar).call @
+		(@raw.renderAtSidebar ? @cfg().renderAtSidebar ? @constructor.renderAtSidebar).call @
 
 	@renderAtSidebar: ->
-		@$sidebarDom.empty().append @u().addDom('heading').text @raw.id
+		@$sidebarDom.empty().append Misc.addDom('heading').text @raw.id
 
 	placeAtSidebar: ->
-		(@raw.placeAtSidebar ? @cfg().line.placeAtSidebar ? @constructor.placeAtSidebar).call @
+		(@raw.placeAtSidebar ? @cfg().placeAtSidebar ? @constructor.placeAtSidebar).call @
 
 	@placeAtSidebar: ->
 		@$sidebarDom.css
@@ -713,6 +859,9 @@ class Timeline.Line extends Timeline.Element
 			height: @getInnerHeight()
 
 class Timeline.Item extends Timeline.Element
+	getClassName: ->
+		'item'
+
 	getLine: ->
 		@timeline.getLineById @raw.lineId
 
@@ -720,25 +869,25 @@ class Timeline.Item extends Timeline.Element
 		@raw.to - @raw.from
 
 	isDraggable: ->
-		@raw.isDraggable ? @cfg().item.isDraggable ? yes
+		@raw.isDraggable ? @cfg().isDraggable ? yes
 
 	canCrossRanges: ->
-		@raw.canCrossRanges ? @cfg().item.canCrossRanges ? yes
+		@raw.canCrossRanges ? @cfg().canCrossRanges ? yes
 
 	build: ->
-		@$dom = @u().addDom 'item', @getLine().getGroup().$dom
+		@$dom = Misc.addDom 'item', @getLine().getGroup().$dom
 		@render()
 		@place()
 		@makeDraggable()
 
 	render: ->
-		(@raw.render ? @cfg().item.render ? @constructor.render).call @
+		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
-		@$dom.empty().append @u().addDom('text').text @raw.text
+		@$dom.empty().append Misc.addDom('text').text @raw.text
 
 	place: ->
-		(@raw.place ? @cfg().item.place ? @constructor.place).call @
+		(@raw.place ? @cfg().place ? @constructor.place).call @
 
 	@place: ->
 		line = @getLine()
@@ -759,7 +908,7 @@ class Timeline.Item extends Timeline.Element
 					width: @$dom.css 'width'
 					height: @$dom.css 'height'
 			start: (e, ui)=>
-				@$dragHint = @u().addDom 'drag-hint', @getLine().getGroup().$dom
+				@$dragHint = Misc.addDom 'drag-hint', @getLine().getGroup().$dom
 				modified = $.extend yes, {}, @
 			stop: (e, ui)=>
 				@$dragHint.remove()
@@ -767,7 +916,7 @@ class Timeline.Item extends Timeline.Element
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				dragInfo = 
-					parentOffset: @u().getScrollContainer(group.$dom).offset()
+					parentOffset: Misc.getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 				
@@ -785,7 +934,7 @@ class Timeline.Item extends Timeline.Element
 					@place()
 
 	canChangeTo: (modified)->
-		(@raw.canChangeTo ? @cfg().item.canChangeTo ? @constructor.canChangeTo).call @, modified
+		(@raw.canChangeTo ? @cfg().canChangeTo ? @constructor.canChangeTo).call @, modified
 
 	@canChangeTo: (modified)->
 		yes
@@ -802,7 +951,7 @@ class Timeline.Item extends Timeline.Element
 		yes
 
 	renderDragHint: (dragInfo)->
-		(@raw.renderDragHint ? @cfg().item.renderDragHint ? @constructor.renderDragHint).call @, dragInfo
+		(@raw.renderDragHint ? @cfg().renderDragHint ? @constructor.renderDragHint).call @, dragInfo
 
 	@renderDragHint: (dragInfo)->
 		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
@@ -810,12 +959,12 @@ class Timeline.Item extends Timeline.Element
 			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
 
 	placeDragHint: (dragInfo)->
-		(@raw.placeDragHint ? @cfg().item.placeDragHint ? @constructor.placeDragHint).call @, dragInfo
+		(@raw.placeDragHint ? @cfg().placeDragHint ? @constructor.placeDragHint).call @, dragInfo
 
 	@placeDragHint: (dragInfo)-> 
 		@$dragHint.css
-			left: drag.event.pageX - drag.parentOffset.left
-			top: drag.event.pageY - drag.parentOffset.top
+			left: dragInfo.event.pageX - dragInfo.parentOffset.left
+			top: dragInfo.event.pageY - dragInfo.parentOffset.top
 
 
 window.Timeline = Timeline
