@@ -20,7 +20,7 @@
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
-    	<div id="test" style="height: 700px; border:blue 5px dashed; box-sizing: border-box;"></div>
+    	<div id="test" style="height: 700px; border:blue 5px dashed;"></div>
     	<script>
     		$(function(){
 	    		window.tl = new Timeline('#test', {
@@ -40,7 +40,7 @@
 	    			],
 	    			groups: [
 	    				{id: 'Group 1', height: 150},
-	    				{id: 'Group 2', height: 400}
+	    				{id: 'Group 2', height: '1 part'}
 	    			],
 	    			lines: [
 	    				{id: 'Line 1A', groupId: 'Group 1', order:1},

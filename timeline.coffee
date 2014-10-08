@@ -22,23 +22,30 @@ class Sized
 			parseInt verb 
 		else if isString and verb.indexOf('%') > -1 
 			percents = parseInt verb
-			parent = @getParentElement
+			parent = @getParentElement()
 			innerSpace = if parent? then parent.getSize 'Inner', axis else 0
-			Math.round(innerSpace * percents / 100)
+			Math.round(innerSpace * percents / 100) -
+			@getExtraOffsetBefore() -
+			@getExtraOffsetAfter()
 		else if isString and verb.indexOf('part') > -1 
 			parts = parseInt verb
 			totalParts = 0
-			children = @getChildrenElements()
 			parent = @getParentElement()
 			remainingSpace = if parent? then parent.getSize 'Inner', axis else 0
-			for child in children
-				childVerb = child.getSize 'Raw', axis
-				if $.type(childVerb) is 'string' and childVerb.indexOf('part') > -1
-					totalParts += parseInt childVerb 
-				else
-					remainingSpace -= child.getSize 'Outer', axis
+			if parent?
+				siblings = parent.getChildrenElements()
+				for sibling in siblings
+					siblingVerb = sibling.getSize 'Raw', axis
+					log sibling
+					log siblingVerb
+					if $.type(siblingVerb) is 'string' and siblingVerb.indexOf('part') > -1
+						totalParts += parseInt siblingVerb 
+					else
+						remainingSpace -= sibling.getSize 'Outer', axis
 				
-			Math.round(remainingSpace * parts / totalParts)
+			Math.round(remainingSpace * parts / totalParts) -
+			@getExtraOffsetBefore() -
+			@getExtraOffsetAfter()
 
 	getParentElement: ->
 
@@ -69,7 +76,7 @@ class Sized
 class Timeline extends Sized
 	constructor: (container, config = {}, items = [])->
 		@$container = $ container
-		@container = Timeline.Container @$container
+		@container = new Timeline.Container @$container, @
 		@config = $.extend yes, @getDefaultConfig(), config
 
 		@sidebar = @createElement 'Sidebar'
@@ -190,7 +197,7 @@ class Timeline extends Sized
 			render: null
 			place: null
 		scale: 1
-		height: 'auto'
+		height: '100%'
 		dashRules: []
 		ranges: []
 		groups: []
@@ -388,16 +395,16 @@ class Timeline.Element extends Sized
 		@raw.extraOffsetAfter ? @cfg().extraOffset?.after ? 0
 
 class Timeline.Container extends Sized
-	getClassName: ->
-		'container'
-
-	constructor: ($dom)->
+	constructor: (@$dom, @timeline)->
 
 	getRawHeight: ->
 		0
 
 	getInnerHeight: ->
-		$dom.innerHeight()
+		@$dom.innerHeight()
+
+	getChildrenElements: ->
+		[@timeline]
 
 class Timeline.Sidebar extends Timeline.Element
 	getClassName: ->
@@ -461,17 +468,17 @@ class Timeline.Ruler extends Timeline.Element
 	isVisible: ->
 		@raw.isVisible ? @cfg().isVisible ? yes
 
-	getOuterHeight: ->
-		if @isVisible()
-			@getInnerHeight()
-		else
-			0
+	getRawHeight: ->
+		if @isVisible() then super() else 0
 
-	getInnerHeight: ->
-		if @isVisible()
-			@raw.height ? @cfg().height ? 50
-		else
-			0
+	getExtraOffsetBefore: ->
+		if @isVisible() then super() else 0
+
+	getExtraOffsetAfter: ->
+		if @isVisible() then super() else 0
+
+	getParentElement: ->
+		@timeline
 
 	build: ->
 		@$dom = Misc.addDom 'ruler', @timeline.$root
@@ -575,14 +582,6 @@ class Timeline.Group extends Timeline.Element
 	getChildrenElements: ->
 		@getLines()
 
-	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().extraOffset.before ? 0
-
-	getOuterHeight: ->
-		@getInnerHeight() +
-		@cfg().extraOffset.before +
-		@cfg().extraOffset.after
-
 	build: ->
 		@$dom = Misc.addDom 'group', @timeline.field.$dom
 		Misc.scrollize @$dom, 'xy', [
@@ -612,7 +611,7 @@ class Timeline.Group extends Timeline.Element
 	@place: ->
 		@$dom.css
 			top : @getVerticalOffset()
-			height: @raw.height
+			height: @getInnerHeight()
 
 		Misc.setInnerSize @$dom, 
 			x: Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
@@ -649,7 +648,7 @@ class Timeline.Group extends Timeline.Element
 	@placeAtSidebar: ->
 		@$sidebarDom.css
 			top : @getVerticalOffset()
-			height: @raw.height
+			height: @getInnerHeight()
 
 		Misc.setInnerSize @$sidebarDom,
 			x: @timeline.sidebar.getInnerWidth()
