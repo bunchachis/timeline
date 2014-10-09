@@ -24,6 +24,7 @@ class Sized
 			percents = parseInt verb
 			parent = @getParentElement()
 			innerSpace = if parent? then parent.getSize 'Inner', axis else 0
+
 			Math.round(innerSpace * percents / 100) -
 			@getExtraOffsetBefore() -
 			@getExtraOffsetAfter()
@@ -73,10 +74,10 @@ class Sized
 
 class Timeline extends Sized
 	constructor: (container, config = {}, items = [])->
-		@$container = $ container
-		@container = new Timeline.Container @$container, @
+		@container = new Timeline.Container $(container), @
 		@config = $.extend yes, @getDefaultConfig(), config
 
+		@root = @createElement 'Root'
 		@sidebar = @createElement 'Sidebar'
 		@ruler = @createElement 'Ruler'
 		@field = @createElement 'Field'
@@ -98,7 +99,7 @@ class Timeline extends Sized
 
 		@checkVerticalFitting()
 
-		@build()
+		@root.build()
 
 	createElement: (type, data = {})->
 		new @constructor[type] @, data 
@@ -202,21 +203,6 @@ class Timeline extends Sized
 		groups: []
 		lines: []
 
-	build: ->
-		@$root = Misc.addDom 'root', @$container
-		@render()
-		@place()
-
-		@sidebar.build()
-		@ruler.build()
-		@field.build()
-
-	render: ->
-
-	place: ->
-		@$root.css
-			height: @getInnerHeight()
-
 	calcDashes: ->
 		dashes = []
 		for dashRule in @dashRules 
@@ -294,19 +280,9 @@ class Timeline extends Sized
 					approxed if @getRangeByTime approxed
 
 	checkVerticalFitting: ->
-		if @getRawHeight() is 'auto'
+		if @root.getRawHeight() is 'auto'
 			for group in @groups when group.doesSizeDependOnParent()
 				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
-
-	getParentElement: ->
-		@container
-
-	getChildrenElements: ->
-		@groups.concat [@ruler]
-
-	getRawHeight: ->
-		@config.height ? 'auto'
-
 
 class Misc
 	@addDom: (name, $container)->
@@ -402,6 +378,34 @@ class Timeline.Container extends Sized
 	getChildrenElements: ->
 		[@timeline]
 
+class Timeline.Root extends Timeline.Element
+	getClassName: ->
+		'root'
+
+	build: ->
+		@$dom = Misc.addDom 'root', @timeline.container.$dom
+		@render()
+		@place()
+
+		@timeline.sidebar.build()
+		@timeline.ruler.build()
+		@timeline.field.build()
+
+	render: ->
+
+	place: ->
+		@$dom.css
+			height: @getInnerHeight()
+
+	getParentElement: ->
+		@timeline.container
+
+	getChildrenElements: ->
+		@timeline.groups.concat [@timeline.ruler]
+
+	getRawHeight: ->
+		@timeline.config.height ? 'auto'
+
 class Timeline.Sidebar extends Timeline.Element
 	getClassName: ->
 		'sidebar'
@@ -422,7 +426,7 @@ class Timeline.Sidebar extends Timeline.Element
 			0
 
 	build: ->
-		@$dom = Misc.addDom 'sidebar', @timeline.$root
+		@$dom = Misc.addDom 'sidebar', @timeline.root.$dom
 		@render()
 		@place()
 
@@ -474,10 +478,10 @@ class Timeline.Ruler extends Timeline.Element
 		if @isVisible() then super() else 0
 
 	getParentElement: ->
-		@timeline
+		@timeline.root
 
 	build: ->
-		@$dom = Misc.addDom 'ruler', @timeline.$root
+		@$dom = Misc.addDom 'ruler', @timeline.root.$dom
 		Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
 		@render()
 		@place()
@@ -526,7 +530,7 @@ class Timeline.Field extends Timeline.Element
 		'field'
 
 	build: ->
-		@$dom = Misc.addDom 'field', @timeline.$root
+		@$dom = Misc.addDom 'field', @timeline.root.$dom
 		@render()
 		@place()
 
@@ -573,7 +577,7 @@ class Timeline.Group extends Timeline.Element
 		)
 
 	getParentElement: ->
-		@timeline
+		@timeline.root
 
 	getChildrenElements: ->
 		@getLines()
