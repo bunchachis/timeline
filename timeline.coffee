@@ -131,23 +131,23 @@ class Timeline extends Evented
 		@field = @createElement 'Field'
 		
 		@ranges = []
-		@addInitialRange range for range in @config.ranges
+		@initialAddRange range for range in @config.ranges
 		@sortRanges()
 
 		@groups = []
-		@addInitialGroup group for group in @config.groups
+		@initialAddGroup group for group in @config.groups
 		@sortGroups()
 
 		@lines = []
-		@addInitialLine line for line in @config.lines
+		@initialAddLine line for line in @config.lines
 		@sortLines()
 
 		@dashRules = []
-		@addInitialDashRule rule for rule in @config.dashRules
+		@initialAddDashRule rule for rule in @config.dashRules
 		@sortDashRules()
 
 		@items = []
-		@addInitialItem item for item in items
+		@initialAddItem item for item in items
 
 		@checkVerticalFitting()
 
@@ -156,7 +156,7 @@ class Timeline extends Evented
 	createElement: (type, data = {})->
 		new @constructor[type] @, data 
 
-	addInitialRange: (range)->
+	initialAddRange: (range)->
 		for elseRange in @ranges
 			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
 				throw 'Can\'t add range overlapping existing one'
@@ -167,7 +167,7 @@ class Timeline extends Evented
 		@ranges = @ranges.sort (a, b)->
 			a.raw.from - b.raw.from
 
-	addInitialGroup: (group)->
+	initialAddGroup: (group)->
 		for elseGroup in @groups
 			if elseGroup.raw.id is group.id
 				throw 'Can\'t add group with same id as existing one has'
@@ -178,7 +178,7 @@ class Timeline extends Evented
 		@groups = @groups.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	addInitialLine: (line)->
+	initialAddLine: (line)->
 		for elseLine in @lines
 			if elseLine.raw.id is line.id
 				throw 'Can\'t add line with same id as existing one has'
@@ -189,7 +189,7 @@ class Timeline extends Evented
 		@lines = @lines.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	addInitialDashRule: (rule)->
+	initialAddDashRule: (rule)->
 		for elseRule in @dashRules
 			if elseRule.id is rule.id
 				throw 'Can\'t add dash rule with same id as existing one has'
@@ -200,7 +200,7 @@ class Timeline extends Evented
 		@dashRules = @dashRules.sort (a, b)->
 			(a.order ? 0) - (b.order ? 0)
 
-	addInitialItem: (obj)->
+	initialAddItem: (obj)->
 		item = @createElement 'Item', obj
 		unless item.isValid()
 			throw 'Can\'t add item due to its invalidity'
@@ -341,6 +341,8 @@ class Timeline extends Evented
 
 	checkVerticalFitting: ->
 		if @root.getRawHeight() is 'auto'
+			if @ruler.doesSizeDependOnParent()
+				throw 'In timeline auto-height mode the ruler size must not be specified in parts of remaining space' 
 			for group in @groups when group.doesSizeDependOnParent()
 				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
 
@@ -1126,15 +1128,15 @@ class Timeline.Item extends Timeline.Element
 		yes
 
 	isValid: ->
-		return no if @raw.from >= @raw.to
+		return no unless @raw.from < @raw.to
 
 		rangeFrom = @timeline.getRangeByTime @raw.from
-		return no if !rangeFrom?
+		return no unless rangeFrom?
 
 		rangeTo = @timeline.getRangeByTime @raw.to - 1
-		return no if !rangeTo?
+		return no unless rangeTo?
 
-		return no if !@canCrossRanges() and rangeFrom isnt rangeTo
+		return no unless @canCrossRanges() or rangeFrom is rangeTo
 
 		yes
 
