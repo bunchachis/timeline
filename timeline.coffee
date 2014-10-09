@@ -7,6 +7,54 @@ mixOf = (base, mixins...) ->
 				Mixed::[name] = method
 	Mixed
 
+class Resource
+	construct: (@destroy)->
+		@holdLevel = 0
+
+	hold: ->
+		@holdLevel++
+
+	release: ->
+		if --@holdLevel is 0
+			@destroy()
+		@destroy = undefined
+
+class Evented
+	listenEvent: (name, fn)->
+		@eventListeners ?= {}
+		@eventListeners[name] ?= lastId: 0, funcs: []
+		index = @eventListeners[name].lastId++
+		@eventListeners[name].funcs[index] = fn
+		new Resource => @unlisten name, index
+
+	unlistenEvent: (name, fnOrIndex)->
+		@eventListeners ?= {}
+		listeners = @eventListeners[name]
+		if listeners?
+			if typeof fnOrIndex is 'number'
+				delete listeners.funcs[fnOrIndex]
+			else
+				for index, fn of listeners.funcs when fn is fnOrIndex
+					delete listeners.funcs[i]
+					break
+
+	fireEvent: (name, event = {}, returnEvent = no)->
+		$extend event,
+			name: name
+			_isPropagationPrevented: no
+			_isCanceled: no
+			cancel: -> @_isCanceled = yes
+			preventPropagation: -> @_isPropagationPrevented = yes
+
+		isOk = yes
+		if @eventListeners?[name]?
+			for index, fn of @eventListeners[name].funcs when fn?
+				break if event._isPropagationPrevented
+				result = fn.call @, event
+				isOk = no if result is no or event._isCanceled
+
+		if returnEvent then event else isOk
+
 class Sized
 	getSize: (type, axis)->
 		@['get' + type + axis]()
@@ -72,7 +120,7 @@ class Sized
 		verb = @getRawHeight()
 		$.type(verb) is 'string' and (verb.indexOf('part') > -1 or verb.indexOf('%') > -1)
 
-class Timeline extends Sized
+class Timeline extends Evented
 	constructor: (container, config = {}, items = [])->
 		@container = new Timeline.Container $(container), @
 		@config = $.extend yes, @getDefaultConfig(), config
@@ -83,19 +131,23 @@ class Timeline extends Sized
 		@field = @createElement 'Field'
 		
 		@ranges = []
-		@addRange range for range in @config.ranges
+		@addInitialRange range for range in @config.ranges
+		@sortRanges()
 
 		@groups = []
-		@addGroup group for group in @config.groups
+		@addInitialGroup group for group in @config.groups
+		@sortGroups()
 
 		@lines = []
-		@addLine line for line in @config.lines
+		@addInitialLine line for line in @config.lines
+		@sortLines()
 
 		@dashRules = []
-		@addDashRule rule for rule in @config.dashRules
+		@addInitialDashRule rule for rule in @config.dashRules
+		@sortDashRules()
 
 		@items = []
-		@addItem item for item in items
+		@addInitialItem item for item in items
 
 		@checkVerticalFitting()
 
@@ -104,43 +156,51 @@ class Timeline extends Sized
 	createElement: (type, data = {})->
 		new @constructor[type] @, data 
 
-	addRange: (range)->
+	addInitialRange: (range)->
 		for elseRange in @ranges
 			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
 				throw 'Can\'t add range overlapping existing one'
 
 		@ranges.push @createElement 'Range', range
+
+	sortRanges: ->
 		@ranges = @ranges.sort (a, b)->
 			a.raw.from - b.raw.from
 
-	addGroup: (group)->
+	addInitialGroup: (group)->
 		for elseGroup in @groups
 			if elseGroup.raw.id is group.id
 				throw 'Can\'t add group with same id as existing one has'
 
 		@groups.push @createElement 'Group', group
+
+	sortGroups: ->
 		@groups = @groups.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	addLine: (line)->
+	addInitialLine: (line)->
 		for elseLine in @lines
 			if elseLine.raw.id is line.id
 				throw 'Can\'t add line with same id as existing one has'
 
 		@lines.push @createElement 'Line', line
+
+	sortLines: ->
 		@lines = @lines.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	addDashRule: (rule)->
+	addInitialDashRule: (rule)->
 		for elseRule in @dashRules
 			if elseRule.id is rule.id
 				throw 'Can\'t add dash rule with same id as existing one has'
 
 		@dashRules.push rule
+
+	sortDashRules: ->
 		@dashRules = @dashRules.sort (a, b)->
 			(a.order ? 0) - (b.order ? 0)
 
-	addItem: (obj)->
+	addInitialItem: (obj)->
 		item = @createElement 'Item', obj
 		unless item.isValid()
 			throw 'Can\'t add item due to its invalidity'
