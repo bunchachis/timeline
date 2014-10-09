@@ -195,6 +195,7 @@ class Timeline extends Sized
 			render: null
 			place: null
 		scale: 1
+		snapResolution: 1
 		height: '100%'
 		dashRules: []
 		ranges: []
@@ -278,21 +279,18 @@ class Timeline extends Sized
 			if range?
 				range.getOffset() + range.getInternalOffset(time)
 
-	approxOffset: (offset)->
-		@getOffset @approxTime @getTime offset
-
-	approxTime: (time)->
+	approxTime: (time, allowPostRange = no)->
 		if time?
-			snapResolution = 3 * 60 * 60
-			approxed = Math.round(time / snapResolution) * snapResolution
-			if @getRangeByTime approxed
+			resolution = @config.snapResolution
+			approxed = Math.round(time / resolution) * resolution
+			if (allowPostRange and @getRangeByTime approxed - 1) or @getRangeByTime approxed
 				approxed
 			else
-				approxed = Math.ceil(time / snapResolution) * snapResolution
+				approxed = Math.ceil(time / resolution) * resolution
 				if @getRangeByTime approxed
 					approxed
 				else
-					approxed = Math.floor(time / snapResolution) * snapResolution
+					approxed = Math.floor(time / resolution) * resolution
 					approxed if @getRangeByTime approxed
 
 	checkVerticalFitting: ->
@@ -903,7 +901,7 @@ class Timeline.Item extends Timeline.Element
 
 		@$dom.draggable
 			helper: =>
-				$('<div />').css
+				Misc.addDom('drag-helper').css
 					width: @$dom.css 'width'
 					height: @$dom.css 'height'
 			start: (e, ui)=>
@@ -958,7 +956,7 @@ class Timeline.Item extends Timeline.Element
 		$resizerLeft.draggable
 			axis: 'x'
 			helper: =>
-				$('<div />').css
+				Misc.addDom('resize-helper-left').css
 					width: $resizerLeft.css 'width'
 					height: $resizerLeft.css 'height'
 			start: (e, ui)=>
@@ -981,6 +979,8 @@ class Timeline.Item extends Timeline.Element
 					left: originalDomOffset + (ui.position.left - ui.originalPosition.left)
 					width: originalDomWidth - (ui.position.left - ui.originalPosition.left)
 					side: 'left'
+
+				$(ui.helper).css marginLeft: -(ui.position.left - ui.originalPosition.left)
 				 
 				@renderResizeHint resizeInfo
 				@placeResizeHint resizeInfo
@@ -1001,7 +1001,7 @@ class Timeline.Item extends Timeline.Element
 		$resizerRight.draggable
 			axis: 'x'
 			helper: =>
-				$('<div />').css
+				Misc.addDom('resize-helper-right').css
 					width: $resizerRight.css 'width'
 					height: $resizerRight.css 'height'
 			start: (e, ui)=>
@@ -1028,7 +1028,7 @@ class Timeline.Item extends Timeline.Element
 				@renderResizeHint resizeInfo
 				@placeResizeHint resizeInfo
 				
-				modified.raw.to = @timeline.approxTime @timeline.getTime resizeInfo.left + resizeInfo.width
+				modified.raw.to = @timeline.approxTime @timeline.getTime(resizeInfo.left + resizeInfo.width), yes
 				
 				if modified.isValid() and @canChangeTo modified
 					$.extend @raw, modified.raw
@@ -1043,7 +1043,7 @@ class Timeline.Item extends Timeline.Element
 		else 
 			resizeInfo.left + resizeInfo.width
 
-		time = @timeline.approxTime @timeline.getTime offset
+		time = @timeline.approxTime @timeline.getTime(offset), resizeInfo.side is 'right'
 		if time?
 			@$resizeHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
 
@@ -1063,7 +1063,7 @@ class Timeline.Item extends Timeline.Element
 
 	isValid: ->
 		return no if @raw.from >= @raw.to
-		 
+
 		rangeFrom = @timeline.getRangeByTime @raw.from
 		return no if !rangeFrom?
 

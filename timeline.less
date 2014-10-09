@@ -124,7 +124,7 @@
 					top: 0;
 					bottom: 0;
 					right: 0;
-					width: 5px;
+					width: 3px;
 					background: red;
 					cursor: e-resize;
 				}
@@ -134,7 +134,7 @@
 					top: 0;
 					bottom: 0;
 					left: 0;
-					width: 5px;
+					width: 3px;
 					background: red;
 					cursor: w-resize;
 				}
@@ -142,10 +142,18 @@
 
 			.ui-draggable-dragging {
 				background: rgba(0, 0, 0, 0.2);
-			}
 
-			.u2i-resizable-resizing {
-				background: rgba(0, 0, 0, 0.2);
+				&.tl-drag-helper {
+					cursor: move;
+				}
+
+				&.tl-resize-helper-left {
+					cursor: w-resize;
+				}
+
+				&.tl-resize-helper-right {
+					cursor: e-resize;
+				}
 			}
 
 			.tl-drag-hint {
