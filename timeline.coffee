@@ -153,6 +153,8 @@ class Timeline extends Evented
 
 		@root.build()
 
+		@icm = new InteractiveCreationMode @
+
 	createElement: (type, data = {})->
 		new @constructor[type] @, data 
 
@@ -287,9 +289,10 @@ class Timeline extends Evented
 		dashes
 
 	getGroupById: (groupId)->
-		for group in @groups
-			if group.raw.id is groupId
-				return group
+		if groupId?
+			for group in @groups
+				if group.raw.id is groupId
+					return group
 
 	getRangeByTime: (time)->
 		for range in @ranges
@@ -346,6 +349,51 @@ class Timeline extends Evented
 				throw 'In timeline auto-height mode the ruler size must not be specified in parts of remaining space' 
 			for group in @groups when group.doesSizeDependOnParent()
 				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
+
+class InteractiveCreationMode
+	constructor: (@timeline)->
+		@isActive = no
+		@time = null
+		@build()
+
+	build: ->
+		@$dashes = []
+		for group in @timeline.groups
+			$dash = Misc.addDom 'icm-dash', group.$dom 
+			@$dashes.push $dash
+
+		@placeDashes()
+
+	activate: (groupId)->
+		@deactivate() if @isActive
+
+		group = @timeline.getGroupById groupId
+		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
+		@moveHandler = (e)=>
+			@time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
+			@placeDashes()
+			
+		@isActive = yes
+		@timeline.field.$dom.on 'mousemove', @moveHandler
+
+	deactivate: ->
+		@isActive = no
+		@placeDashes()
+		@timeline.field.$dom.off 'mousemove', @moveHandler
+
+	placeDashes: ->
+		@placeDash $dash for $dash in @$dashes
+
+	placeDash: ($dash)->
+		offset = @timeline.getOffset @time
+		if @isActive and offset?
+			$dash.css
+				display: 'block'
+				left: offset
+		else
+			$dash.css
+				display: 'none'
+
 
 class Misc
 	@addDom: (name, $container)->
