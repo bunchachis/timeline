@@ -20,10 +20,11 @@
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
+    	<div id="info"></div>
     	<div id="test" style="height: 700px; border:blue 5px dashed;"></div>
     	<script>
     		$(function(){
-	    		window.tl = new Timeline('#test', {
+	    		tl = new Timeline('#test', {
 	    			ranges: [
 	    				{
 	    					from: moment('1.09.2014', 'DD.MM.YYYY').unix(),
@@ -35,7 +36,8 @@
 	    				},
 	    				{
 	    					from: moment('8.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix()
+	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix(),
+	    					extraOffsetAfter: 5
 	    				}
 	    			],
 	    			groups: [
@@ -43,21 +45,21 @@
 	    				{id: 'Group 2', height: '1 part'}
 	    			],
 	    			lines: [
-	    				{id: 'Line 1A', groupId: 'Group 1', order:1},
-	    				{id: 'Line 2A', groupId: 'Group 1', order:2},
-	    				{id: 'Line 3A', groupId: 'Group 1', order:3},
-	    				{id: 'Line 4A', groupId: 'Group 1', order:4},
-	    				{id: 'Line 5A', groupId: 'Group 1', order:5},
-	    				{id: 'Line 6A', groupId: 'Group 1', order:6},
-	    				{id: 'Line 1B', groupId: 'Group 2'},
-	    				{id: 'Line 2B', groupId: 'Group 2'},
-	    				{id: 'Line 3B', groupId: 'Group 2'},
-	    				{id: 'Line 4B', groupId: 'Group 2'},
-	    				{id: 'Line 5B', groupId: 'Group 2'},
-	    				{id: 'Line 6B', groupId: 'Group 2'},
-	    				{id: 'Line 7B', groupId: 'Group 2'},
-	    				{id: 'Line 8B', groupId: 'Group 2'},
-	    				{id: 'Line 9B', groupId: 'Group 2'}
+	    				{id: 'Line 1A', groupId: 'Group 1', order: 1},
+	    				{id: 'Line 2A', groupId: 'Group 1', order: 2},
+	    				{id: 'Line 3A', groupId: 'Group 1', order: 3},
+	    				{id: 'Line 4A', groupId: 'Group 1', order: 4},
+	    				{id: 'Line 5A', groupId: 'Group 1', order: 5},
+	    				{id: 'Line 6A', groupId: 'Group 1', order: 6, extraOffsetAfter: 5},
+	    				{id: 'Line 1B', groupId: 'Group 2', order: 1},
+	    				{id: 'Line 2B', groupId: 'Group 2', order: 2},
+	    				{id: 'Line 3B', groupId: 'Group 2', order: 3},
+	    				{id: 'Line 4B', groupId: 'Group 2', order: 4},
+	    				{id: 'Line 5B', groupId: 'Group 2', order: 5},
+	    				{id: 'Line 6B', groupId: 'Group 2', order: 6},
+	    				{id: 'Line 7B', groupId: 'Group 2', order: 7},
+	    				{id: 'Line 8B', groupId: 'Group 2', order: 8},
+	    				{id: 'Line 9B', groupId: 'Group 2', order: 9, extraOffsetAfter: 5}
 	    			],
 	    			scale: 24 * 3600 / 200, // sec/px
 	    			snapResolution: 6 * 3600,
@@ -86,6 +88,14 @@
     					text: 'Item 3'
     				}
 	    		]);
+
+				tl.listenEvent('item:modify', function(e){
+					$('#info').html(
+						moment.unix(e.item.raw.from).format('DD.MM.YYYY HH:mm:ss')
+						+ ' — '
+						+ moment.unix(e.item.raw.to).format('DD.MM.YYYY HH:mm:ss')
+					);
+				})
 	    	});
     	</script>
     </body>

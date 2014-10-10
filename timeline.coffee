@@ -39,7 +39,7 @@ class Evented
 					break
 
 	fireEvent: (name, event = {}, returnEvent = no)->
-		$extend event,
+		$.extend event,
 			name: name
 			_isPropagationPrevented: no
 			_isCanceled: no
@@ -252,6 +252,7 @@ class Timeline extends Evented
 			canCrossRanges: yes
 			render: null
 			place: null
+			isValid: null
 		dash:
 			render: null
 			place: null
@@ -973,9 +974,11 @@ class Timeline.Item extends Timeline.Element
 			start: (e, ui)=>
 				@$dragHint = Misc.addDom 'drag-hint', @getLine().getGroup().$dom
 				modified = $.extend yes, {}, @
+				@timeline.fireEvent 'item:drag:start', item: @
 			stop: (e, ui)=>
 				@$dragHint.remove()
 				modified = null
+				@timeline.fireEvent 'item:drag:stop', item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				dragInfo = 
@@ -986,15 +989,18 @@ class Timeline.Item extends Timeline.Element
 				@renderDragHint dragInfo
 				@placeDragHint dragInfo
 				
+
 				duration = @getDuration()
 				modified.raw.from = @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 				modified.raw.to = modified.raw.from + duration
 				newLine = @timeline.getLineByVerticalOffset group, dragInfo.event.pageY - dragInfo.parentOffset.top
 				modified.raw.lineId = newLine.raw.id if newLine
 
-				if modified.isValid() and @canChangeTo modified
-					$.extend @raw, modified.raw
-					@place()
+				if modified.isValid()
+					if @timeline.fireEvent('item:drag', item: modified, originalItem: @) and
+					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
+						$.extend @raw, modified.raw
+						@place()
 
 	renderDragHint: (dragInfo)->
 		(@raw.renderDragHint ? @cfg().renderDragHint ? @constructor.renderDragHint).call @, dragInfo
@@ -1030,11 +1036,13 @@ class Timeline.Item extends Timeline.Element
 				modified = $.extend yes, {}, @
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
+				@timeline.fireEvent 'item:resize:start', item: @
 			stop: (e, ui)=>
 				@$resizeHint.remove()
 				modified = null
 				originalDomOffset = null
 				originalDomWidth = null
+				@timeline.fireEvent 'item:resize:stop', item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				
@@ -1053,9 +1061,11 @@ class Timeline.Item extends Timeline.Element
 				
 				modified.raw.from = @timeline.approxTime @timeline.getTime resizeInfo.left
 				
-				if modified.isValid() and @canChangeTo modified
-					$.extend @raw, modified.raw
-					@place()
+				if modified.isValid()
+					if @timeline.fireEvent('item:resize', item: modified, originalItem: @) and
+					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
+						$.extend @raw, modified.raw
+						@place()
 
 	makeResizeableRight: ->
 		$resizerRight = Misc.addDom 'resizer-right', @$dom
@@ -1075,11 +1085,13 @@ class Timeline.Item extends Timeline.Element
 				modified = $.extend yes, {}, @
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
+				@timeline.fireEvent 'item:resize:start', item: @
 			stop: (e, ui)=>
 				@$resizeHint.remove()
 				modified = null
 				originalDomOffset = null
 				originalDomWidth = null
+				@timeline.fireEvent 'item:resize:stop', item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				
@@ -1096,9 +1108,12 @@ class Timeline.Item extends Timeline.Element
 				
 				modified.raw.to = @timeline.approxTime @timeline.getTime(resizeInfo.left + resizeInfo.width), yes
 				
-				if modified.isValid() and @canChangeTo modified
-					$.extend @raw, modified.raw
-					@place()
+				if modified.isValid()
+					if @timeline.fireEvent('item:resize', item: modified, originalItem: @) and
+					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
+						$.extend @raw, modified.raw
+						@place()
+
 
 	renderResizeHint: (resizeInfo)->
 		(@raw.renderResizeHint ? @cfg().renderResizeHint ? @constructor.renderResizeHint).call @, resizeInfo
@@ -1121,13 +1136,10 @@ class Timeline.Item extends Timeline.Element
 			left: resizeInfo.event.pageX - resizeInfo.parentOffset.left
 			top: resizeInfo.event.pageY - resizeInfo.parentOffset.top
 
-	canChangeTo: (modified)->
-		(@raw.canChangeTo ? @cfg().canChangeTo ? @constructor.canChangeTo).call @, modified
-
-	@canChangeTo: (modified)->
-		yes
-
 	isValid: ->
+		(@raw.isValid ? @cfg().isValid ? @constructor.isValid).call @
+
+	@isValid: ->
 		return no unless @raw.from < @raw.to
 
 		rangeFrom = @timeline.getRangeByTime @raw.from
