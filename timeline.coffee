@@ -208,6 +208,12 @@ class Timeline extends Evented
 			throw 'Can\'t add item due to its invalidity'
 
 		@items.push item 
+		item
+
+	addItem: (obj)->
+		item = @initialAddItem obj
+		item.build()
+		item
 
 	getDefaultConfig: ->
 		field:
@@ -353,45 +359,130 @@ class Timeline extends Evented
 class InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
-		@time = null
+		@from = null
+		@to = null
+		@line = null
+		@group = null
+		@stateName = null
+		@stateVars = null
 		@build()
 
 	build: ->
+		@$helpers = []
 		@$dashes = []
 		for group in @timeline.groups
 			$dash = Misc.addDom 'icm-dash', group.$dom 
 			@$dashes.push $dash
+			$helper = Misc.addDom 'icm-helper', group.$dom
+			@$helpers.push $helper
 
 		@placeDashes()
+		@placeHelpers()
 
 	activate: (groupId)->
-		@deactivate() if @isActive
-
-		group = @timeline.getGroupById groupId
-		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
-		@moveHandler = (e)=>
-			@time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
-			@placeDashes()
-			
 		@isActive = yes
-		@timeline.field.$dom.on 'mousemove', @moveHandler
+		@group = @timeline.getGroupById groupId
+		@activateState 'SetBeginning'
 
 	deactivate: ->
 		@isActive = no
+		@from = null
+		@to = null
+		@line = null
+		@group = null
+		@deactivateState @stateName
+
+	activateState: (stateName)->
+		@deactivateState @stateName
+		@stateName = stateName
+		@stateVars = {}
+		@['activateState' + @stateName]()
+
+	deactivateState: (stateName)->
+		@['deactivateState' + stateName]() if stateName?
+		@stateName = null
+		@stateVars = null
+
+	activateStateSetBeginning: ->
+		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
+		@stateVars.moveHandler = (e)=>
+			group = $(e.target).parents('.tl-group').data('timeline-host-object')
+			if group?
+				@line = @timeline.getLineByVerticalOffset(group, e.pageY - fieldOffset.top)
+			@stateVars.time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
+			@placeDashes()
+			@placeHelpers()
+		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
+
+		@stateVars.clickHandler = (e)=>
+			@from = @stateVars.time
+			@activateState 'SetEnding'
+		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
+
+	deactivateStateSetBeginning: ->
 		@placeDashes()
-		@timeline.field.$dom.off 'mousemove', @moveHandler
+		@placeHelpers()
+		@timeline.field.$dom.off 'mousemove', @stateVars.moveHandler
+		@timeline.field.$dom.off 'click', @stateVars.clickHandler
+
+	activateStateSetEnding: ->
+		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
+		@stateVars.moveHandler = (e)=>
+			@stateVars.time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
+			@placeDashes()
+			@placeHelpers()
+		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
+
+		@stateVars.clickHandler = (e)=>
+			@to = @stateVars.time
+			item = @timeline.addItem
+				text: 'New item'
+				from: @from
+				to: @to
+				lineId: @line.raw.id
+
+			@deactivate() if item?
+		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
+
+	deactivateStateSetEnding: ->
+		@placeDashes()
+		@placeHelpers()
+		@timeline.field.$dom.off 'mousemove', @stateVars.moveHandler
+		@timeline.field.$dom.off 'click', @stateVars.clickHandler
 
 	placeDashes: ->
 		@placeDash $dash for $dash in @$dashes
 
 	placeDash: ($dash)->
-		offset = @timeline.getOffset @time
+		offset = @timeline.getOffset @stateVars?.time
 		if @isActive and offset?
 			$dash.css
 				display: 'block'
 				left: offset
 		else
 			$dash.css
+				display: 'none'
+
+	placeHelpers: ->
+		@placeHelper $helper for $helper in @$helpers
+
+	placeHelper: ($helper)->
+		if @stateName is 'SetBeginning'
+			offset = @timeline.getOffset @stateVars.time
+			width = ''
+		else if @stateName is 'SetEnding'
+			offset = @timeline.getOffset @from
+			width = @timeline.getOffset(@stateVars.time) - offset
+		
+		if @isActive and @line? and offset?
+			$helper.css
+				display: 'block'
+				left: offset
+				width: width
+				top: @line.getVerticalOffset() + @line.getInternalVerticalOffset()
+				height: @line.getInnerHeight()
+		else
+			$helper.css
 				display: 'none'
 
 
@@ -695,6 +786,7 @@ class Timeline.Group extends Timeline.Element
 
 	build: ->
 		@$dom = Misc.addDom 'group', @timeline.field.$dom
+		@$dom.data 'timeline-host-object', @
 		Misc.scrollize @$dom, 'xy', [
 			{axis: 'x', getTarget: => 
 				targets = (elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)
