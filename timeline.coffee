@@ -131,23 +131,23 @@ class Timeline extends Evented
 		@field = @createElement 'Field'
 		
 		@ranges = []
-		@initialAddRange range for range in @config.ranges
+		@rawAddRange range for range in @config.ranges
 		@sortRanges()
 
 		@groups = []
-		@initialAddGroup group for group in @config.groups
+		@rawAddGroup group for group in @config.groups
 		@sortGroups()
 
 		@lines = []
-		@initialAddLine line for line in @config.lines
+		@rawAddLine line for line in @config.lines
 		@sortLines()
 
 		@dashRules = []
-		@initialAddDashRule rule for rule in @config.dashRules
+		@rawAddDashRule rule for rule in @config.dashRules
 		@sortDashRules()
 
 		@items = []
-		@initialAddItem item for item in items
+		@rawAddItem @createItem rawItem for rawItem in items
 
 		@checkVerticalFitting()
 
@@ -158,7 +158,7 @@ class Timeline extends Evented
 	createElement: (type, data = {})->
 		new @constructor[type] @, data 
 
-	initialAddRange: (range)->
+	rawAddRange: (range)->
 		for elseRange in @ranges
 			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
 				throw 'Can\'t add range overlapping existing one'
@@ -169,7 +169,7 @@ class Timeline extends Evented
 		@ranges = @ranges.sort (a, b)->
 			a.raw.from - b.raw.from
 
-	initialAddGroup: (group)->
+	rawAddGroup: (group)->
 		for elseGroup in @groups
 			if elseGroup.raw.id is group.id
 				throw 'Can\'t add group with same id as existing one has'
@@ -180,7 +180,7 @@ class Timeline extends Evented
 		@groups = @groups.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	initialAddLine: (line)->
+	rawAddLine: (line)->
 		for elseLine in @lines
 			if elseLine.raw.id is line.id
 				throw 'Can\'t add line with same id as existing one has'
@@ -191,7 +191,7 @@ class Timeline extends Evented
 		@lines = @lines.sort (a, b)->
 			(a.raw.order ? 0) - (b.raw.order ? 0)
 
-	initialAddDashRule: (rule)->
+	rawAddDashRule: (rule)->
 		for elseRule in @dashRules
 			if elseRule.id is rule.id
 				throw 'Can\'t add dash rule with same id as existing one has'
@@ -202,18 +202,18 @@ class Timeline extends Evented
 		@dashRules = @dashRules.sort (a, b)->
 			(a.order ? 0) - (b.order ? 0)
 
-	initialAddItem: (obj)->
-		item = @createElement 'Item', obj
+	createItem: (raw)->
+		item = @createElement 'Item', raw
+
+	rawAddItem: (item)->
 		unless item.isValid()
 			throw 'Can\'t add item due to its invalidity'
 
 		@items.push item 
-		item
 
-	addItem: (obj)->
-		item = @initialAddItem obj
+	addItem: (item)->
+		@rawAddItem item
 		item.build()
-		item
 
 	getDefaultConfig: ->
 		field:
@@ -359,12 +359,6 @@ class Timeline extends Evented
 class InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
-		@from = null
-		@to = null
-		@line = null
-		@group = null
-		@stateName = null
-		@stateVars = null
 		@build()
 
 	build: ->
@@ -379,13 +373,14 @@ class InteractiveCreationMode
 		@placeDashes()
 		@placeHelpers()
 
-	activate: (groupId)->
+	activate: (@itemTemplate = {}, groupId)->
 		@isActive = yes
 		@group = @timeline.getGroupById groupId
 		@activateState 'SetBeginning'
 
 	deactivate: ->
 		@isActive = no
+		@itemTemplate = null
 		@from = null
 		@to = null
 		@line = null
@@ -435,13 +430,14 @@ class InteractiveCreationMode
 
 		@stateVars.clickHandler = (e)=>
 			@to = @stateVars.time
-			item = @timeline.addItem
-				text: 'New item'
+			item = @timeline.createItem $.extend {}, @itemTemplate, 
 				from: @from
 				to: @to
 				lineId: @line.raw.id
 
-			@deactivate() if item?
+			if item.isValid()
+				@timeline.addItem item
+				@deactivate()
 		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
 
 	deactivateStateSetEnding: ->
@@ -1281,6 +1277,8 @@ class Timeline.Item extends Timeline.Element
 
 	@isValid: ->
 		return no unless @raw.from < @raw.to
+
+		return no if @raw.minDuration? and @raw.to - @raw.from < @raw.minDuration
 
 		rangeFrom = @timeline.getRangeByTime @raw.from
 		return no unless rangeFrom?
