@@ -403,15 +403,19 @@ class InteractiveCreationMode
 		@stateVars.moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			if group?
-				@line = @timeline.getLineByVerticalOffset(group, e.pageY - fieldOffset.top)
-			@stateVars.time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
+				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
+				@from = @timeline.approxTime @timeline.getTime(e.pageX - groupOffset.left)
+			else
+				@from = null
+
 			@placeDashes()
 			@placeHelpers()
 		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
 
 		@stateVars.clickHandler = (e)=>
-			@from = @stateVars.time
-			@activateState 'SetEnding'
+			if @from?
+				@activateState 'SetEnding'
 		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
 
 	deactivateStateSetBeginning: ->
@@ -423,21 +427,28 @@ class InteractiveCreationMode
 	activateStateSetEnding: ->
 		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
 		@stateVars.moveHandler = (e)=>
-			@stateVars.time = @timeline.approxTime @timeline.getTime(e.pageX - fieldOffset.left)
+			group = $(e.target).parents('.tl-group').data('timeline-host-object')
+			if group?
+				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
+				@to = @timeline.approxTime mouseTime, yes
+			else
+				@to = null
+
 			@placeDashes()
 			@placeHelpers()
 		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
 
 		@stateVars.clickHandler = (e)=>
-			@to = @stateVars.time
-			item = @timeline.createItem $.extend {}, @itemTemplate, 
-				from: @from
-				to: @to
-				lineId: @line.raw.id
+			if @to?
+				item = @timeline.createItem $.extend {}, @itemTemplate, 
+					from: @from
+					to: @to
+					lineId: @line.raw.id
 
-			if item.isValid()
-				@timeline.addItem item
-				@deactivate()
+				if item.isValid()
+					@timeline.addItem item
+					@deactivate()
 		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
 
 	deactivateStateSetEnding: ->
@@ -450,7 +461,10 @@ class InteractiveCreationMode
 		@placeDash $dash for $dash in @$dashes
 
 	placeDash: ($dash)->
-		offset = @timeline.getOffset @stateVars?.time
+		offset = @timeline.getOffset switch @stateName
+			when 'SetBeginning' then @from
+			when 'SetEnding' then @to - 1
+
 		if @isActive and offset?
 			$dash.css
 				display: 'block'
@@ -463,12 +477,16 @@ class InteractiveCreationMode
 		@placeHelper $helper for $helper in @$helpers
 
 	placeHelper: ($helper)->
-		if @stateName is 'SetBeginning'
-			offset = @timeline.getOffset @stateVars.time
-			width = ''
-		else if @stateName is 'SetEnding'
-			offset = @timeline.getOffset @from
-			width = @timeline.getOffset(@stateVars.time) - offset
+		group = $helper.parents('.tl-group').data 'timeline-host-object'
+		
+		if group is @line?.getGroup()
+			switch @stateName
+				when 'SetBeginning'
+					offset = @timeline.getOffset @from
+					width = ''
+				when 'SetEnding'
+					offset = @timeline.getOffset @from
+					width = @timeline.getOffset(@to - 1) - offset
 		
 		if @isActive and @line? and offset?
 			$helper.css
@@ -480,7 +498,6 @@ class InteractiveCreationMode
 		else
 			$helper.css
 				display: 'none'
-
 
 class Misc
 	@addDom: (name, $container)->

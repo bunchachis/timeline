@@ -695,12 +695,15 @@
       fieldOffset = Misc.getScrollContainer(this.timeline.field.$dom).offset();
       this.stateVars.moveHandler = (function(_this) {
         return function(e) {
-          var group;
+          var group, groupOffset;
           group = $(e.target).parents('.tl-group').data('timeline-host-object');
           if (group != null) {
-            _this.line = _this.timeline.getLineByVerticalOffset(group, e.pageY - fieldOffset.top);
+            groupOffset = Misc.getScrollContainer(group.$dom).offset();
+            _this.line = _this.timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top);
+            _this.from = _this.timeline.approxTime(_this.timeline.getTime(e.pageX - groupOffset.left));
+          } else {
+            _this.from = null;
           }
-          _this.stateVars.time = _this.timeline.approxTime(_this.timeline.getTime(e.pageX - fieldOffset.left));
           _this.placeDashes();
           return _this.placeHelpers();
         };
@@ -708,8 +711,9 @@
       this.timeline.field.$dom.on('mousemove', this.stateVars.moveHandler);
       this.stateVars.clickHandler = (function(_this) {
         return function(e) {
-          _this.from = _this.stateVars.time;
-          return _this.activateState('SetEnding');
+          if (_this.from != null) {
+            return _this.activateState('SetEnding');
+          }
         };
       })(this);
       return this.timeline.field.$dom.on('click', this.stateVars.clickHandler);
@@ -727,7 +731,15 @@
       fieldOffset = Misc.getScrollContainer(this.timeline.field.$dom).offset();
       this.stateVars.moveHandler = (function(_this) {
         return function(e) {
-          _this.stateVars.time = _this.timeline.approxTime(_this.timeline.getTime(e.pageX - fieldOffset.left));
+          var group, groupOffset, mouseTime;
+          group = $(e.target).parents('.tl-group').data('timeline-host-object');
+          if (group != null) {
+            groupOffset = Misc.getScrollContainer(group.$dom).offset();
+            mouseTime = _this.timeline.getTime(e.pageX - groupOffset.left);
+            _this.to = _this.timeline.approxTime(mouseTime, true);
+          } else {
+            _this.to = null;
+          }
           _this.placeDashes();
           return _this.placeHelpers();
         };
@@ -736,15 +748,16 @@
       this.stateVars.clickHandler = (function(_this) {
         return function(e) {
           var item;
-          _this.to = _this.stateVars.time;
-          item = _this.timeline.createItem($.extend({}, _this.itemTemplate, {
-            from: _this.from,
-            to: _this.to,
-            lineId: _this.line.raw.id
-          }));
-          if (item.isValid()) {
-            _this.timeline.addItem(item);
-            return _this.deactivate();
+          if (_this.to != null) {
+            item = _this.timeline.createItem($.extend({}, _this.itemTemplate, {
+              from: _this.from,
+              to: _this.to,
+              lineId: _this.line.raw.id
+            }));
+            if (item.isValid()) {
+              _this.timeline.addItem(item);
+              return _this.deactivate();
+            }
           }
         };
       })(this);
@@ -770,8 +783,15 @@
     };
 
     InteractiveCreationMode.prototype.placeDash = function($dash) {
-      var offset, _ref;
-      offset = this.timeline.getOffset((_ref = this.stateVars) != null ? _ref.time : void 0);
+      var offset;
+      offset = this.timeline.getOffset((function() {
+        switch (this.stateName) {
+          case 'SetBeginning':
+            return this.from;
+          case 'SetEnding':
+            return this.to - 1;
+        }
+      }).call(this));
       if (this.isActive && (offset != null)) {
         return $dash.css({
           display: 'block',
@@ -796,13 +816,18 @@
     };
 
     InteractiveCreationMode.prototype.placeHelper = function($helper) {
-      var offset, width;
-      if (this.stateName === 'SetBeginning') {
-        offset = this.timeline.getOffset(this.stateVars.time);
-        width = '';
-      } else if (this.stateName === 'SetEnding') {
-        offset = this.timeline.getOffset(this.from);
-        width = this.timeline.getOffset(this.stateVars.time) - offset;
+      var group, offset, width, _ref;
+      group = $helper.parents('.tl-group').data('timeline-host-object');
+      if (group === ((_ref = this.line) != null ? _ref.getGroup() : void 0)) {
+        switch (this.stateName) {
+          case 'SetBeginning':
+            offset = this.timeline.getOffset(this.from);
+            width = '';
+            break;
+          case 'SetEnding':
+            offset = this.timeline.getOffset(this.from);
+            width = this.timeline.getOffset(this.to - 1) - offset;
+        }
       }
       if (this.isActive && (this.line != null) && (offset != null)) {
         return $helper.css({
