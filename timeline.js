@@ -678,7 +678,6 @@
     InteractiveCreationMode.prototype.activateState = function(stateName) {
       this.deactivateState(this.stateName);
       this.stateName = stateName;
-      this.stateVars = {};
       return this['activateState' + this.stateName]();
     };
 
@@ -686,14 +685,13 @@
       if (stateName != null) {
         this['deactivateState' + stateName]();
       }
-      this.stateName = null;
-      return this.stateVars = null;
+      return this.stateName = null;
     };
 
     InteractiveCreationMode.prototype.activateStateSetBeginning = function() {
       var fieldOffset;
       fieldOffset = Misc.getScrollContainer(this.timeline.field.$dom).offset();
-      this.stateVars.moveHandler = (function(_this) {
+      this.moveHandler = (function(_this) {
         return function(e) {
           var group, groupOffset;
           group = $(e.target).parents('.tl-group').data('timeline-host-object');
@@ -708,28 +706,30 @@
           return _this.placeHelpers();
         };
       })(this);
-      this.timeline.field.$dom.on('mousemove', this.stateVars.moveHandler);
-      this.stateVars.clickHandler = (function(_this) {
+      this.timeline.field.$dom.on('mousemove', this.moveHandler);
+      this.clickHandler = (function(_this) {
         return function(e) {
           if (_this.from != null) {
             return _this.activateState('SetEnding');
           }
         };
       })(this);
-      return this.timeline.field.$dom.on('click', this.stateVars.clickHandler);
+      return this.timeline.field.$dom.on('click', this.clickHandler);
     };
 
     InteractiveCreationMode.prototype.deactivateStateSetBeginning = function() {
       this.placeDashes();
       this.placeHelpers();
-      this.timeline.field.$dom.off('mousemove', this.stateVars.moveHandler);
-      return this.timeline.field.$dom.off('click', this.stateVars.clickHandler);
+      this.timeline.field.$dom.off('mousemove', this.moveHandler);
+      this.moveHandler = null;
+      this.timeline.field.$dom.off('click', this.clickHandler);
+      return this.clickHandler = null;
     };
 
     InteractiveCreationMode.prototype.activateStateSetEnding = function() {
       var fieldOffset;
       fieldOffset = Misc.getScrollContainer(this.timeline.field.$dom).offset();
-      this.stateVars.moveHandler = (function(_this) {
+      this.moveHandler = (function(_this) {
         return function(e) {
           var group, groupOffset, mouseTime;
           group = $(e.target).parents('.tl-group').data('timeline-host-object');
@@ -744,8 +744,8 @@
           return _this.placeHelpers();
         };
       })(this);
-      this.timeline.field.$dom.on('mousemove', this.stateVars.moveHandler);
-      this.stateVars.clickHandler = (function(_this) {
+      this.timeline.field.$dom.on('mousemove', this.moveHandler);
+      this.clickHandler = (function(_this) {
         return function(e) {
           var item;
           if (_this.to != null) {
@@ -761,14 +761,16 @@
           }
         };
       })(this);
-      return this.timeline.field.$dom.on('click', this.stateVars.clickHandler);
+      return this.timeline.field.$dom.on('click', this.clickHandler);
     };
 
     InteractiveCreationMode.prototype.deactivateStateSetEnding = function() {
       this.placeDashes();
       this.placeHelpers();
-      this.timeline.field.$dom.off('mousemove', this.stateVars.moveHandler);
-      return this.timeline.field.$dom.off('click', this.stateVars.clickHandler);
+      this.timeline.field.$dom.off('mousemove', this.moveHandler);
+      this.moveHandler = null;
+      this.timeline.field.$dom.off('click', this.clickHandler);
+      return this.clickHandler = null;
     };
 
     InteractiveCreationMode.prototype.placeDashes = function() {

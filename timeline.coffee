@@ -390,17 +390,15 @@ class InteractiveCreationMode
 	activateState: (stateName)->
 		@deactivateState @stateName
 		@stateName = stateName
-		@stateVars = {}
 		@['activateState' + @stateName]()
 
 	deactivateState: (stateName)->
 		@['deactivateState' + stateName]() if stateName?
 		@stateName = null
-		@stateVars = null
 
 	activateStateSetBeginning: ->
 		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
-		@stateVars.moveHandler = (e)=>
+		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			if group?
 				groupOffset = Misc.getScrollContainer(group.$dom).offset()
@@ -411,22 +409,24 @@ class InteractiveCreationMode
 
 			@placeDashes()
 			@placeHelpers()
-		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
+		@timeline.field.$dom.on 'mousemove', @moveHandler
 
-		@stateVars.clickHandler = (e)=>
+		@clickHandler = (e)=>
 			if @from?
 				@activateState 'SetEnding'
-		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
+		@timeline.field.$dom.on 'click', @clickHandler	
 
 	deactivateStateSetBeginning: ->
 		@placeDashes()
 		@placeHelpers()
-		@timeline.field.$dom.off 'mousemove', @stateVars.moveHandler
-		@timeline.field.$dom.off 'click', @stateVars.clickHandler
+		@timeline.field.$dom.off 'mousemove', @moveHandler
+		@moveHandler = null
+		@timeline.field.$dom.off 'click', @clickHandler
+		@clickHandler = null
 
 	activateStateSetEnding: ->
 		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
-		@stateVars.moveHandler = (e)=>
+		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			if group?
 				groupOffset = Misc.getScrollContainer(group.$dom).offset()
@@ -437,9 +437,9 @@ class InteractiveCreationMode
 
 			@placeDashes()
 			@placeHelpers()
-		@timeline.field.$dom.on 'mousemove', @stateVars.moveHandler
+		@timeline.field.$dom.on 'mousemove', @moveHandler
 
-		@stateVars.clickHandler = (e)=>
+		@clickHandler = (e)=>
 			if @to?
 				item = @timeline.createItem $.extend {}, @itemTemplate, 
 					from: @from
@@ -449,13 +449,15 @@ class InteractiveCreationMode
 				if item.isValid()
 					@timeline.addItem item
 					@deactivate()
-		@timeline.field.$dom.on 'click', @stateVars.clickHandler	
+		@timeline.field.$dom.on 'click', @clickHandler	
 
 	deactivateStateSetEnding: ->
 		@placeDashes()
 		@placeHelpers()
-		@timeline.field.$dom.off 'mousemove', @stateVars.moveHandler
-		@timeline.field.$dom.off 'click', @stateVars.clickHandler
+		@timeline.field.$dom.off 'mousemove', @moveHandler
+		@moveHandler = null
+		@timeline.field.$dom.off 'click', @clickHandler
+		@clickHandler = null
 
 	placeDashes: ->
 		@placeDash $dash for $dash in @$dashes
