@@ -374,6 +374,8 @@ class InteractiveCreationMode
 			$helper = Misc.addDom 'icm-helper', group.$dom
 			@$helpers.push $helper
 
+		@$hint = Misc.addDom 'icm-hint'
+
 		@placeDashes()
 		@placeHelpers()
 
@@ -404,8 +406,11 @@ class InteractiveCreationMode
 		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
+			mouseInfo = event: e
 			if group?
 				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				mouseInfo.group = group
+				mouseInfo.parentOffset = groupOffset
 				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
 				@from = @timeline.approxTime @timeline.getTime(e.pageX - groupOffset.left)
 			else
@@ -413,7 +418,18 @@ class InteractiveCreationMode
 
 			@placeDashes()
 			@placeHelpers()
+			@placeHint mouseInfo
+			@renderHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
+
+		@leaveHandler = (e)=>
+			@from = null
+
+			@placeDashes()
+			@placeHelpers()
+			@placeHint {}
+			@renderHint {}
+		@timeline.field.$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
 			if @from?
@@ -423,8 +439,12 @@ class InteractiveCreationMode
 	deactivateStateSetBeginning: ->
 		@placeDashes()
 		@placeHelpers()
+		@placeHint {}
+		@renderHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
+		@timeline.field.$dom.off 'mouseleave', @leaveHandler
+		@leaveHandler = null
 		@timeline.field.$dom.off 'click', @clickHandler
 		@clickHandler = null
 
@@ -432,8 +452,11 @@ class InteractiveCreationMode
 		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
+			mouseInfo = event: e
 			if group?
 				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				mouseInfo.group = group
+				mouseInfo.parentOffset = groupOffset
 				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
 				@to = @timeline.approxTime mouseTime, yes
 			else
@@ -441,7 +464,18 @@ class InteractiveCreationMode
 
 			@placeDashes()
 			@placeHelpers()
+			@placeHint mouseInfo
+			@renderHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
+
+		@leaveHandler = (e)=>
+			@to = null
+
+			@placeDashes()
+			@placeHelpers()
+			@placeHint {}
+			@renderHint {}
+		@timeline.field.$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
 			if @to?
@@ -458,8 +492,12 @@ class InteractiveCreationMode
 	deactivateStateSetEnding: ->
 		@placeDashes()
 		@placeHelpers()
+		@placeHint {}
+		@renderHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
+		@timeline.field.$dom.off 'mouseleave', @leaveHandler
+		@leaveHandler = null
 		@timeline.field.$dom.off 'click', @clickHandler
 		@clickHandler = null
 
@@ -492,9 +530,9 @@ class InteractiveCreationMode
 					width = ''
 				when 'SetEnding'
 					offset = @timeline.getOffset @from
-					width = @timeline.getOffset(@to - 1) - offset
+					width = if @to? then @timeline.getOffset(@to - 1) - offset else null
 		
-		if @isActive and @line? and offset?
+		if @isActive and @line? and offset? and width?
 			$helper.css
 				display: 'block'
 				left: offset
@@ -504,6 +542,30 @@ class InteractiveCreationMode
 		else
 			$helper.css
 				display: 'none'
+
+	renderHint: (mouseInfo)->
+		(@timeline.config.icm?.renderHint ? @constructor.renderHint).call @, mouseInfo
+
+	@renderHint: (mouseInfo)->
+		if @isActive and mouseInfo.group?
+			offset = mouseInfo.event.pageX - mouseInfo.parentOffset.left
+			time = @timeline.approxTime @timeline.getTime(offset), @stateName is 'SetEnding'
+			if time?
+				@$hint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+		else 
+			@$hint.empty()
+
+	placeHint: (mouseInfo)->
+		(@timeline.config.icm?.placeHint ? @constructor.placeHint).call @, mouseInfo
+
+	@placeHint: (mouseInfo)->
+		if @isActive and mouseInfo.group?
+			@$hint.appendTo Misc.getScrollContainer mouseInfo.group.$dom
+			@$hint.css
+				left: mouseInfo.event.pageX - mouseInfo.parentOffset.left
+				top: mouseInfo.event.pageY - mouseInfo.parentOffset.top
+		else
+			@$hint.detach()
 
 class Misc
 	@addDom: (name, $container)->
@@ -563,7 +625,6 @@ class Misc
 		sum = 0
 		sum += value for value in array
 		sum
-
 
 class Timeline.Element extends Sized
 	constructor: (@timeline, @raw = {})->
@@ -992,7 +1053,6 @@ class Timeline.Range extends Timeline.Element
 		@$rulerDom.css
 			left: @getOffset()
 			width: @getInnerWidth()
-
 
 class Timeline.Dash extends Timeline.Element
 	getClassName: ->
