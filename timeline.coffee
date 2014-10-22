@@ -128,6 +128,7 @@ class Timeline extends Evented
 		@root = @createElement 'Root'
 		@sidebar = @createElement 'Sidebar'
 		@ruler = @createElement 'Ruler'
+		@corner = @createElement 'Corner'
 		@field = @createElement 'Field'
 		
 		@ranges = []
@@ -219,6 +220,9 @@ class Timeline extends Evented
 		field:
 			render: null
 			place: null
+		corner:
+			render: null
+			place: null
 		ruler:
 			isVisible: yes
 			position: 'top'
@@ -233,8 +237,8 @@ class Timeline extends Evented
 			place: null
 		range:
 			extraOffset: 
-				before: 5
-				after: 15
+				before: 0
+				after: 0
 			render: null
 			place: null
 			renderAtRuler: null
@@ -242,15 +246,15 @@ class Timeline extends Evented
 		group:
 			height: 'auto'
 			extraOffset:
-				before: 5
-				after: 5
+				before: 0
+				after: 0
 			render: null
 			place: null
 		line:
 			height: 50
 			extraOffset:
-				before: 5
-				after: 10
+				before: 0
+				after: 0
 			render: null
 			place: null
 			renderAtSidebar: null
@@ -606,6 +610,7 @@ class Timeline.Root extends Timeline.Element
 
 		@timeline.sidebar.build()
 		@timeline.ruler.build()
+		@timeline.corner.build()
 		@timeline.field.build()
 
 	render: ->
@@ -741,6 +746,42 @@ class Timeline.Ruler extends Timeline.Element
 
 	buildDashes: ->
 		dash.buildAtRuler() for dash in @timeline.calcDashes()
+
+class Timeline.Corner extends Timeline.Element
+	getClassName: ->
+		'corner'
+
+	build: ->
+		@$dom = Misc.addDom 'corner', @timeline.root.$dom
+		@render()
+		@place()
+
+	render: ->
+		(@raw.render ? @cfg().render ? @constructor.render).call @
+
+	@render: ->
+
+	place: ->
+		(@raw.place ? @cfg().place ? @constructor.place).call @
+
+	@place: ->
+		@$dom.css if @timeline.config.ruler.position is 'top'
+			top: 0
+			bottom: ''
+		else
+			top: ''
+			bottom: 0
+
+		@$dom.css if @timeline.config.sidebar.position is 'left'
+			left: 0
+			right: ''
+		else 
+			left: ''
+			right: 0
+			
+		@$dom.css
+			width: @timeline.sidebar.getOuterWidth()
+			height: @timeline.ruler.getOuterHeight()
 
 class Timeline.Field extends Timeline.Element
 	getClassName: ->

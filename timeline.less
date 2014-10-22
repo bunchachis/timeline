@@ -1,7 +1,6 @@
 .tl-root {
 	position: relative;
 	width: 100%;
-	background: #eee;
 
 	.mCSB_container {
 		margin:0 !important;
@@ -13,14 +12,11 @@
 
 	.tl-sidebar {
 		position: absolute;
-		background: #ccc;
 
 		.tl-group {
 			position: absolute;
 			left: 0;
 			right: 0;
-			border-top: 5px solid black;
-			border-bottom: 5px solid black;
 
 			.tl-scroll-inner {
 				position: relative;
@@ -30,15 +26,12 @@
 				position: absolute;
 				left: 0;
 				right: 0;
-				border-top: 5px solid orange;
-				border-bottom: 5px solid blue;
 			}
 		}
 	}
 
 	.tl-ruler {
 		position: absolute;
-		background: #bbb;
 
 		.tl-scroll-inner {
 			position: relative;
@@ -49,26 +42,22 @@
 			bottom: 0;
 			width: 1px;
 			height: 10px;
-			background: #666;
-
-			&.id-6-hour {height: 5px;}
-			&.id-12-hour {height: 10px;}
-			&.id-24-hour {height: 20px;}
 		}
 
 		.tl-range {
 			position: absolute;
 			top: 0;
 			bottom:0;
-			border-left: 5px solid red;
-			border-right: 5px solid green;
 
 			.tl-heading {
 				text-align: center;
 				height: 30px;
-				background: #888;
 			}
 		}
+	}
+
+	.tl-corner {
+		position: absolute;
 	}
 
 	.tl-field {
@@ -83,26 +72,17 @@
 			position: absolute;
 			left: 0;
 			right: 0;
-			border-top: 5px solid #666;
-			border-bottom: 5px solid #666;
 
 			.tl-line {
 				position: absolute;
 				left: 0;
 				right: 0;
-				border-top: 5px solid orange;
-				border-bottom: 5px solid blue;
-				background: white;
 			}
 
 			.tl-range {
 				position: absolute;
 				top: 0;
 				bottom:0;
-				border-left: 5px solid red;
-				border-right: 5px solid green;
-				background: white;
-				opacity: 0.5;
 			}
 
 			.tl-dash {
@@ -110,14 +90,10 @@
 				top: 0;
 				bottom: 0;
 				width: 1px;
-				background: #666;
-
-				&.id-6-hour {display: none;}
 			}
 
 			.tl-item {
 				position: absolute;
-				background: pink;
 
 				.tl-resizer-right {
 					position: absolute;
@@ -125,7 +101,6 @@
 					bottom: 0;
 					right: 0;
 					width: 3px;
-					background: red;
 					cursor: e-resize;
 				}
 
@@ -135,13 +110,12 @@
 					bottom: 0;
 					left: 0;
 					width: 3px;
-					background: red;
 					cursor: w-resize;
 				}
 			}
 
 			.ui-draggable-dragging {
-				background: rgba(0, 0, 0, 0.2);
+				background: rgba(0, 0, 0, 0);
 
 				&.tl-drag-helper {
 					cursor: move;
@@ -160,7 +134,6 @@
 				position: absolute;
 				height: 20px;
 				line-height: 20px;
-				background: yellow;
 				margin-left: 16px;
 			}
 
@@ -168,7 +141,6 @@
 				position: absolute;
 				height: 20px;
 				line-height: 20px;
-				background: yellow;
 				margin-left: 16px;
 			}
 		}
@@ -180,12 +152,11 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		border-left: magenta 1px dotted;
 	}
 
 	.tl-icm-helper {
 		position: absolute;
 		width: 3px;
-		background: rgba(0, 0, 0, 0.2);
+		background: rgba(0, 0, 0, 0);
 	}
 }

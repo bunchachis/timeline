@@ -4,10 +4,11 @@
         <meta charset="utf-8">
         <title>title</title>
         <style>
-        	html, body {background:#348;}
+        	html, body {background:#fff; padding: 0; margin: 0;}
         </style>
 
-        <script src="moment.js"></script> 
+        <script src="moment-with-locales.min.js"></script> 
+        <script>moment.locale('ru')</script>
         <script src="jquery-2.1.0.min.js"></script>
         <script src="jquery-ui.min.js"></script>
 
@@ -17,76 +18,69 @@
         <script src="timeline.js"></script> 
         <link rel="stylesheet/less" type="text/css" href="timeline.less" />
 
+        <link rel="stylesheet/less" type="text/css" href="timeline-theme.less" />
+
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
-    	<a href="javascript:tl.icm.activate({text: 'new-item', minDuration: 12 * 3600});">[+]</a> <span id="info"></span>
-    	<div id="test" style="height: 700px; border:blue 5px dashed;"></div>
+		<a href="javascript:tl.icm.activate({text: 'new-item', minDuration: 15 * 60});">[+]</a> <span id="info"></span>
+    	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){
 	    		tl = new Timeline('#test', {
+	    			line: {
+	    				extraOffset: {after: 1},
+						renderAtSidebar: function(){
+							this.$sidebarDom.html($('<div class="tl-text" />').html(this.raw.html));
+						}
+	    			},
+	    			group: {extraOffset: {after: 3}},
+	    			range: {
+	    				extraOffset: {after: 5},
+	    				renderAtRuler: function(){
+	    					this.$rulerDom.html($('<div class="tl-heading" />').text(moment.unix(this.raw.from).format('D MMMM YYYY')));
+	    				}
+	    			},
+	    			sidebar: {width: 170},
+	    			ruler: {height: 53},
+
+	    			scale: 3600 / 72, // sec/px
+	    			snapResolution: 5 * 60,
+					dashRules: [
+						{id: 'half-hour', type: 'every', step: 30*60},
+						{id: '10-mins', type: 'every', step: 10*60},
+					],
+
 	    			ranges: [
 	    				{
-	    					from: moment('1.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('3.09.2014', 'DD.MM.YYYY').unix()
-	    				},
-	    				{
-	    					from: moment('6.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('8.09.2014', 'DD.MM.YYYY').unix()
-	    				},
-	    				{
-	    					from: moment('8.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix(),
-	    					extraOffsetAfter: 5
+							from: moment('07.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+							to: moment('07.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss').unix()
+						},
+						{
+							from: moment('08.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+							to: moment('08.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+							extraOffsetAfter: 0
 	    				}
 	    			],
 	    			groups: [
-	    				{id: 'Group 1', height: 150},
-	    				{id: 'Group 2', height: '1 part'}
+	    				{id: 'users', height: 'auto'},
+	    				{id: 'posts', height: '1 part', extraOffsetAfter: 0}
 	    			],
 	    			lines: [
-	    				{id: 'Line 1A', groupId: 'Group 1', order: 1},
-	    				{id: 'Line 2A', groupId: 'Group 1', order: 2},
-	    				{id: 'Line 3A', groupId: 'Group 1', order: 3},
-	    				{id: 'Line 4A', groupId: 'Group 1', order: 4},
-	    				{id: 'Line 5A', groupId: 'Group 1', order: 5},
-	    				{id: 'Line 6A', groupId: 'Group 1', order: 6, extraOffsetAfter: 5},
-	    				{id: 'Line 1B', groupId: 'Group 2', order: 1},
-	    				{id: 'Line 2B', groupId: 'Group 2', order: 2},
-	    				{id: 'Line 3B', groupId: 'Group 2', order: 3},
-	    				{id: 'Line 4B', groupId: 'Group 2', order: 4},
-	    				{id: 'Line 5B', groupId: 'Group 2', order: 5},
-	    				{id: 'Line 6B', groupId: 'Group 2', order: 6},
-	    				{id: 'Line 7B', groupId: 'Group 2', order: 7},
-	    				{id: 'Line 8B', groupId: 'Group 2', order: 8},
-	    				{id: 'Line 9B', groupId: 'Group 2', order: 9, extraOffsetAfter: 5}
-	    			],
-	    			scale: 24 * 3600 / 200, // sec/px
-	    			snapResolution: 3 * 3600,
-					dashRules: [
-						{id: '24-hour', type: 'every', step: 24*3600},
-						{id: '12-hour', type: 'every', step: 12*3600},
-						{id: '6-hour', type: 'every', step: 6*3600},
-					]
+	    				{id: 'user:1', groupId: 'users', height: 40, order: 1, html: 'Мастер-приёмщик<br>Иванов И. И.'},
+	    				{id: 'user:2', groupId: 'users', height: 40, order: 2, html: 'Мастер-приёмщик<br>Константинопольский К. К.', extraOffsetAfter: 0},
+	    				{id: 'post:1', groupId: 'posts', height: 68, order: 1, html: '<br><strong>Подъёмник 1</strong><br>80%'},
+	    				{id: 'post:2', groupId: 'posts', height: 68, order: 2, html: '<br><strong>Подъёмник 2</strong><br>80%'},
+	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%'},
+	    				{id: 'post:4', groupId: 'posts', height: 68, order: 4, html: '<br><strong>Подъёмник 4</strong><br>80%'},
+	    				{id: 'post:5', groupId: 'posts', height: 68, order: 5, html: '<br><strong>Подъёмник 5</strong><br>80%'},
+	    				{id: 'post:6', groupId: 'posts', height: 68, order: 6, html: '<br><strong>Подъёмник 6</strong><br>80%'},
+	    				{id: 'post:7', groupId: 'posts', height: 68, order: 7, html: '<br><strong>Подъёмник 7</strong><br>80%'},
+	    				{id: 'post:8', groupId: 'posts', height: 68, order: 8, html: '<br><strong>Подъёмник 8</strong><br>80%'},
+	    				{id: 'post:9', groupId: 'posts', height: 68, order: 9, html: '<br><strong>Подъёмник 9</strong><br>80%', extraOffsetAfter: 0}
+	    			]
 	    		}, [
-    				{
-    					lineId: 'Line 1A',
-    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 1'
-    				},
-    				{
-    					lineId: 'Line 2A',
-    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 2'
-    				},
-    				{
-    					lineId: 'Line 3A',
-    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 3'
-    				}
+    				
 	    		]);
 
 				tl.listenEvent('item:modify', function(e){
@@ -97,6 +91,27 @@
 					);
 				})
 	    	});
+
+			items = [
+				{
+					lineId: 'Line 1A',
+					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 1'
+				},
+				{
+					lineId: 'Line 2A',
+					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 2'
+				},
+				{
+					lineId: 'Line 3A',
+					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 3'
+				}
+			];
     	</script>
     </body>
 </html>

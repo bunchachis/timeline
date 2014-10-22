@@ -1,0 +1,139 @@
+.tl-root {
+	overflow: hidden;
+	background: #fff;
+	font: 12px normal 'tahoma';
+	line-height: 14px;
+	color: #333;
+
+	.tl-corner {
+		border-right: 1px solid #c7c7c7;
+		border-bottom: 1px solid #c7c7c7;
+		background: #fff;
+		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		z-index: 3;
+	}
+
+	.tl-sidebar {
+		background: #f0f0f0;
+		border-top: 1px solid #c7c7c7;
+		margin-top: -1px;
+		//border-right: 1px solid #c7c7c7;
+		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		z-index: 2;
+
+		.tl-group {
+			border-bottom: 3px solid #777d86;
+
+			.tl-line {
+				border-bottom: 1px solid #c7c7c7;
+
+				.tl-text {
+					padding: 6px 9px;
+					color: #333;
+					white-space: nowrap;
+
+					strong {
+						font-size: 14px;
+					}
+				}
+			}
+		}
+	}
+
+	.tl-ruler {
+		background: #fafafa url('img/day.png') repeat-x left bottom;
+		border-left: 1px solid #c7c7c7;
+		margin-left: -1px;
+		//border-bottom: 1px solid #c7c7c7;
+		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		z-index: 2;
+
+		.tl-dash {
+			bottom: 0;
+			width: 1px;
+			height: 10px;
+			background: #808080;
+
+			&.id-half-hour {height: 10px;}
+			&.id-10-mins {height: 5px;}
+		}
+
+		.tl-range {
+			border-right: 5px solid #c7c7c7;
+
+			.tl-heading {
+				text-align: center;
+				height: 26px;
+				border-bottom: 1px solid #e4e4e4;
+				background: #dfdfdf url('img/day2.png') repeat-x left top;
+				font-size: 14px;
+				font-weight: bold;
+				line-height: 26px;
+			}
+		}
+	}
+
+	.tl-field {
+		z-index: 1;
+
+		.tl-group {
+			border-bottom: 3px solid #777d86;
+
+			.tl-line {
+				border-bottom: 1px solid #c7c7c7;
+			}
+
+			.tl-range {
+				border-right: 5px solid #c7c7c7;
+			}
+
+			.tl-dash {
+				background: #c7c7c7;
+
+				&.id-10-mins {display: none;}
+			}
+
+			.tl-item {
+				background: #c8e2ef;
+
+				.tl-resizer-right {
+				}
+
+				.tl-resizer-left {
+				}
+			}
+
+			.ui-draggable-dragging {
+			}
+
+			.tl-drag-hint {
+				height: 20px;
+				line-height: 20px;
+				background: yellow;
+				margin-left: 16px;
+			}
+
+			.tl-resize-hint {
+				height: 20px;
+				line-height: 20px;
+				background: yellow;
+				margin-left: 16px;
+			}
+		}
+	}
+}
+
+.tl-group {
+	.tl-icm-dash {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		border-left: magenta 1px dotted;
+	}
+
+	.tl-icm-helper {
+		position: absolute;
+		width: 3px;
+		background: rgba(0, 0, 0, 0.2);
+	}
+}
