@@ -1,3 +1,12 @@
+.hint() {
+	position: absolute;
+	height: 20px;
+	line-height: 20px;
+	margin-left: 16px;
+	background: #eae0b9;
+	box-shadow: rgba(0, 0, 0, 0.35) 0 1px 3px;
+}
+
 .tl-root {
 	overflow: hidden;
 	background: #fff;
@@ -7,7 +16,7 @@
 
 	.tl-corner {
 		background: #fff;
-		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		box-shadow: rgba(0, 0, 0, 0.35) 0 0 10px;
 		z-index: 3;
 	}
 
@@ -15,8 +24,7 @@
 		background: #f0f0f0;
 		border-top: 1px solid #c7c7c7;
 		margin-top: -1px;
-		//border-right: 1px solid #c7c7c7;
-		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		box-shadow: rgba(0, 0, 0, 0.35) 0 0 10px;
 		z-index: 2;
 
 		.tl-group {
@@ -42,8 +50,7 @@
 		background: #fafafa url('img/day.png') repeat-x left bottom;
 		border-left: 1px solid #c7c7c7;
 		margin-left: -1px;
-		//border-bottom: 1px solid #c7c7c7;
-		box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+		box-shadow: rgba(0, 0, 0, 0.35) 0 0 10px;
 		z-index: 2;
 
 		.tl-dash {
@@ -126,17 +133,11 @@
 			}
 
 			.tl-drag-hint {
-				height: 20px;
-				line-height: 20px;
-				background: yellow;
-				margin-left: 16px;
+				.hint;
 			}
 
 			.tl-resize-hint {
-				height: 20px;
-				line-height: 20px;
-				background: yellow;
-				margin-left: 16px;
+				.hint;
 			}
 		}
 	}
@@ -157,10 +158,6 @@
 	}
 
 	.tl-icm-hint {
-		position: absolute;
-		background: yellow;
-		height: 20px;
-		line-height: 20px;
-		margin-left: 16px;
+		.hint;
 	}
 }

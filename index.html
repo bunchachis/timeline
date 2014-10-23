@@ -28,23 +28,22 @@
     	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){
-	    		tl = new Timeline('#test', {
+	    		tl = new TL.Timeline('#test', {
 	    			line: {
 	    				extraOffset: {after: 1},
 						renderAtSidebar: function(){
-							this.$sidebarDom.html($('<div class="tl-text" />').html(this.raw.html));
+							this.$sidebarDom.html(TL.Misc.addDom('tl-text').html(this.raw.html));
 						}
 	    			},
 	    			group: {extraOffset: {after: 3}},
 	    			range: {
 	    				extraOffset: {after: 5},
 	    				renderAtRuler: function(){
-	    					this.$rulerDom.html($('<div class="tl-heading" />').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
+	    					this.$rulerDom.html(TL.Misc.addDom('tl-heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
 	    			},
 	    			sidebar: {width: 170},
 	    			ruler: {height: 53},
-
 	    			timezone: 'UTC',
 	    			scale: 10 * 60 / 12, // 10 mins per 12 px
 	    			snapResolution: 5 * 60,
@@ -83,9 +82,7 @@
 	    				{id: 'post:8', groupId: 'posts', height: 68, order: 8, html: '<br><strong>Подъёмник 8</strong><br>80%'},
 	    				{id: 'post:9', groupId: 'posts', height: 68, order: 9, html: '<br><strong>Подъёмник 9</strong><br>80%', extraOffsetAfter: 0}
 	    			]
-	    		}, [
-    				
-	    		]);
+	    		}, []);
 
 				tl.listenEvent('item:modify', function(e){
 					$('#info').html(
@@ -93,9 +90,18 @@
 						+ ' — '
 						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
 					);
-				})
+				});
+
+				tl.listenEvent('item:create', function(e){
+					$('#info').html(
+						moment.unix(e.item.raw.from).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+						+ ' — '
+						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+					);
+				});
 	    	});
 
+			/*
 			items = [
 				{
 					lineId: 'Line 1A',
@@ -116,6 +122,7 @@
 					text: 'Item 3'
 				}
 			];
+			*/
     	</script>
     </body>
 </html>

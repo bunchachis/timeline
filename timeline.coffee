@@ -1,13 +1,6 @@
-log = (x)-> console.log(x)
+TL = {}
 
-mixOf = (base, mixins...)->
-	class Mixed extends base
-		for mixin in mixins by -1 # earlier mixins override later ones
-			for name, method of mixin::
-				Mixed::[name] = method
-	Mixed
-
-class Resource
+class TL.Resource
 	construct: (@destroy)->
 		@holdLevel = 0
 
@@ -19,13 +12,13 @@ class Resource
 			@destroy()
 		@destroy = undefined
 
-class Evented
+class TL.Evented
 	listenEvent: (name, fn)->
 		@eventListeners ?= {}
 		@eventListeners[name] ?= lastId: 0, funcs: []
 		index = @eventListeners[name].lastId++
 		@eventListeners[name].funcs[index] = fn
-		new Resource => @unlisten name, index
+		new TL.Resource => @unlisten name, index
 
 	unlistenEvent: (name, fnOrIndex)->
 		@eventListeners ?= {}
@@ -55,7 +48,7 @@ class Evented
 
 		if returnEvent then event else isOk
 
-class Sized
+class TL.Sized
 	getSize: (type, axis)->
 		@['get' + type + axis]()
 
@@ -63,7 +56,7 @@ class Sized
 		verb = @['getRaw' + axis]()
 		isString = $.type(verb) is 'string'
 		if verb is 'auto'
-			Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements())
+			TL.Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements())
 		else if $.type(verb) is 'number'
 			verb
 		else if isString and verb.indexOf('px') > -1
@@ -120,9 +113,9 @@ class Sized
 		verb = @getRawHeight()
 		$.type(verb) is 'string' and (verb.indexOf('part') > -1 or verb.indexOf('%') > -1)
 
-class Timeline extends Evented
+class TL.Timeline extends TL.Evented
 	constructor: (container, config = {}, items = [])->
-		@container = new Timeline.Container $(container), @
+		@container = new TL.Element.Container $(container), @
 		@config = $.extend yes, @getDefaultConfig(), config
 
 		@root = @createElement 'Root'
@@ -154,10 +147,13 @@ class Timeline extends Evented
 
 		@root.build()
 
-		@icm = new InteractiveCreationMode @
+		@icm = new TL.InteractiveCreationMode @
 
 	createElement: (type, data = {})->
-		new @constructor[type] @, data 
+		(@config.renderAtSidebar ? @constructor.createElement).call @, type, data
+
+	@createElement: (type, data = {})->
+		new TL.Element[type] @, data
 
 	rawAddRange: (range)->
 		for elseRange in @ranges
@@ -272,6 +268,7 @@ class Timeline extends Evented
 		timezone: 'UTC'
 		snapResolution: 1
 		height: '100%'
+		createElement: null
 		dashRules: []
 		ranges: []
 		groups: []
@@ -361,7 +358,7 @@ class Timeline extends Evented
 			for group in @groups when group.doesSizeDependOnParent()
 				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
 
-class InteractiveCreationMode
+class TL.InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
 		@build()
@@ -370,12 +367,12 @@ class InteractiveCreationMode
 		@$helpers = []
 		@$dashes = []
 		for group in @timeline.groups
-			$dash = Misc.addDom 'icm-dash', group.$dom 
+			$dash = TL.Misc.addDom 'icm-dash', group.$dom 
 			@$dashes.push $dash
-			$helper = Misc.addDom 'icm-helper', group.$dom
+			$helper = TL.Misc.addDom 'icm-helper', group.$dom
 			@$helpers.push $helper
 
-		@$hint = Misc.addDom 'icm-hint'
+		@$hint = TL.Misc.addDom 'icm-hint'
 
 		@placeDashes()
 		@placeHelpers()
@@ -404,12 +401,12 @@ class InteractiveCreationMode
 		@stateName = null
 
 	activateStateSetBeginning: ->
-		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
+		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group?
-				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				groupOffset = TL.Misc.getScrollContainer(group.$dom).offset()
 				mouseInfo.group = group
 				mouseInfo.parentOffset = groupOffset
 				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
@@ -450,12 +447,12 @@ class InteractiveCreationMode
 		@clickHandler = null
 
 	activateStateSetEnding: ->
-		fieldOffset = Misc.getScrollContainer(@timeline.field.$dom).offset()
+		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group?
-				groupOffset = Misc.getScrollContainer(group.$dom).offset()
+				groupOffset = TL.Misc.getScrollContainer(group.$dom).offset()
 				mouseInfo.group = group
 				mouseInfo.parentOffset = groupOffset
 				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
@@ -486,8 +483,9 @@ class InteractiveCreationMode
 					lineId: @line.raw.id
 
 				if item.isValid()
-					@timeline.addItem item
-					@deactivate()
+					if @timeline.fireEvent 'item:create', {item}
+						@timeline.addItem item
+						@deactivate()
 		@timeline.field.$dom.on 'click', @clickHandler	
 
 	deactivateStateSetEnding: ->
@@ -561,14 +559,14 @@ class InteractiveCreationMode
 
 	@placeHint: (mouseInfo)->
 		if @isActive and mouseInfo.group?
-			@$hint.appendTo Misc.getScrollContainer mouseInfo.group.$dom
+			@$hint.appendTo TL.Misc.getScrollContainer mouseInfo.group.$dom
 			@$hint.css
 				left: mouseInfo.event.pageX - mouseInfo.parentOffset.left
 				top: mouseInfo.event.pageY - mouseInfo.parentOffset.top
 		else
 			@$hint.detach()
 
-class Misc
+class TL.Misc
 	@addDom: (name, $container)->
 		$element = $('<div />').addClass "tl-#{name}"
 		if $container
@@ -627,7 +625,7 @@ class Misc
 		sum += value for value in array
 		sum
 
-class Timeline.Element extends Sized
+class TL.Element extends TL.Sized
 	constructor: (@timeline, @raw = {})->
 		@className = @getClassName()
 		@init()
@@ -649,7 +647,7 @@ class Timeline.Element extends Sized
 	getExtraOffsetAfter: ->
 		@raw.extraOffsetAfter ? @cfg().extraOffset?.after ? 0
 
-class Timeline.Container extends Sized
+class TL.Element.Container extends TL.Sized
 	constructor: (@$dom, @timeline)->
 
 	getRawHeight: ->
@@ -661,12 +659,12 @@ class Timeline.Container extends Sized
 	getChildrenElements: ->
 		[@timeline]
 
-class Timeline.Root extends Timeline.Element
+class TL.Element.Root extends TL.Element
 	getClassName: ->
 		'root'
 
 	build: ->
-		@$dom = Misc.addDom 'root', @timeline.container.$dom
+		@$dom = TL.Misc.addDom 'root', @timeline.container.$dom
 		@render()
 		@place()
 
@@ -690,7 +688,7 @@ class Timeline.Root extends Timeline.Element
 	getRawHeight: ->
 		@timeline.config.height ? 'auto'
 
-class Timeline.Sidebar extends Timeline.Element
+class TL.Element.Sidebar extends TL.Element
 	getClassName: ->
 		'sidebar'
 
@@ -710,7 +708,7 @@ class Timeline.Sidebar extends Timeline.Element
 			0
 
 	build: ->
-		@$dom = Misc.addDom 'sidebar', @timeline.root.$dom
+		@$dom = TL.Misc.addDom 'sidebar', @timeline.root.$dom
 		@render()
 		@place()
 
@@ -745,7 +743,7 @@ class Timeline.Sidebar extends Timeline.Element
 	buildGroups: ->
 		group.buildAtSidebar() for group in @timeline.groups
 
-class Timeline.Ruler extends Timeline.Element
+class TL.Element.Ruler extends TL.Element
 	getClassName: ->
 		'ruler'
 
@@ -765,8 +763,8 @@ class Timeline.Ruler extends Timeline.Element
 		@timeline.root
 
 	build: ->
-		@$dom = Misc.addDom 'ruler', @timeline.root.$dom
-		Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
+		@$dom = TL.Misc.addDom 'ruler', @timeline.root.$dom
+		TL.Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
 		@render()
 		@place()
 		
@@ -799,8 +797,8 @@ class Timeline.Ruler extends Timeline.Element
 		@$dom.css 
 			height: @timeline.ruler.getInnerHeight()
 
-		Misc.setInnerSize @$dom, 
-			x: Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
+		TL.Misc.setInnerSize @$dom, 
+			x: TL.Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
 			y: @timeline.ruler.getInnerHeight()
 
 	buildRanges: ->
@@ -809,12 +807,12 @@ class Timeline.Ruler extends Timeline.Element
 	buildDashes: ->
 		dash.buildAtRuler() for dash in @timeline.calcDashes()
 
-class Timeline.Corner extends Timeline.Element
+class TL.Element.Corner extends TL.Element
 	getClassName: ->
 		'corner'
 
 	build: ->
-		@$dom = Misc.addDom 'corner', @timeline.root.$dom
+		@$dom = TL.Misc.addDom 'corner', @timeline.root.$dom
 		@render()
 		@place()
 
@@ -845,12 +843,12 @@ class Timeline.Corner extends Timeline.Element
 			width: @timeline.sidebar.getOuterWidth()
 			height: @timeline.ruler.getOuterHeight()
 
-class Timeline.Field extends Timeline.Element
+class TL.Element.Field extends TL.Element
 	getClassName: ->
 		'field'
 
 	build: ->
-		@$dom = Misc.addDom 'field', @timeline.root.$dom
+		@$dom = TL.Misc.addDom 'field', @timeline.root.$dom
 		@render()
 		@place()
 
@@ -882,7 +880,7 @@ class Timeline.Field extends Timeline.Element
 	buildGroups: ->
 		group.build() for group in @timeline.groups
 
-class Timeline.Group extends Timeline.Element
+class TL.Element.Group extends TL.Element
 	getClassName: ->
 		'group'
 
@@ -890,7 +888,7 @@ class Timeline.Group extends Timeline.Element
 		line for line in @timeline.lines when line.raw.groupId is @raw.id
 
 	getVerticalOffset: ->
-		x = Misc.sum(
+		x = TL.Misc.sum(
 			for elseGroup in @timeline.groups
 				break if elseGroup.raw.id is @raw.id
 				elseGroup.getOuterHeight() 
@@ -903,9 +901,9 @@ class Timeline.Group extends Timeline.Element
 		@getLines()
 
 	build: ->
-		@$dom = Misc.addDom 'group', @timeline.field.$dom
+		@$dom = TL.Misc.addDom 'group', @timeline.field.$dom
 		@$dom.data 'timeline-host-object', @
-		Misc.scrollize @$dom, 'xy', [
+		TL.Misc.scrollize @$dom, 'xy', [
 			{axis: 'x', getTarget: => 
 				targets = (elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)
 				targets.push @timeline.ruler.$dom if @timeline.ruler.$dom?
@@ -934,9 +932,9 @@ class Timeline.Group extends Timeline.Element
 			top : @getVerticalOffset()
 			height: @getInnerHeight()
 
-		Misc.setInnerSize @$dom, 
-			x: Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
-			y: Misc.sum(line.getOuterHeight() for line in @getLines())
+		TL.Misc.setInnerSize @$dom, 
+			x: TL.Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
+			y: TL.Misc.sum(line.getOuterHeight() for line in @getLines())
 
 	buildLines: ->
 		line.build() for line in @getLines()
@@ -951,8 +949,8 @@ class Timeline.Group extends Timeline.Element
 		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
 
 	buildAtSidebar: ->
-		@$sidebarDom = Misc.addDom 'group', @timeline.sidebar.$dom
-		Misc.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
+		@$sidebarDom = TL.Misc.addDom 'group', @timeline.sidebar.$dom
+		TL.Misc.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
 		@renderAtSidebar()
 		@placeAtSidebar()
 
@@ -971,14 +969,14 @@ class Timeline.Group extends Timeline.Element
 			top : @getVerticalOffset()
 			height: @getInnerHeight()
 
-		Misc.setInnerSize @$sidebarDom,
+		TL.Misc.setInnerSize @$sidebarDom,
 			x: @timeline.sidebar.getInnerWidth()
-			y: Misc.sum(line.getOuterHeight() for line in @getLines())
+			y: TL.Misc.sum(line.getOuterHeight() for line in @getLines())
 
 	buildLinesAtSidebar: ->
 		line.buildAtSidebar() for line in @getLines()
 
-class Timeline.Range extends Timeline.Element
+class TL.Element.Range extends TL.Element
 	getClassName: ->
 		'range'
 
@@ -986,7 +984,7 @@ class Timeline.Range extends Timeline.Element
 		@$doms = []
 
 	getOffset: ->
-		Misc.sum(
+		TL.Misc.sum(
 			for elseRange in @timeline.ranges when elseRange.raw.from < @raw.from
 				elseRange.getOuterWidth() 
 		)
@@ -1016,7 +1014,7 @@ class Timeline.Range extends Timeline.Element
 		@raw.from + internalOffset * @timeline.config.scale
 
 	build: (group)->
-		$dom = Misc.addDom 'range', group.$dom
+		$dom = TL.Misc.addDom 'range', group.$dom
 		@$doms.push $dom
 		@render $dom
 		@place $dom
@@ -1035,7 +1033,7 @@ class Timeline.Range extends Timeline.Element
 			width: @getInnerWidth()
 
 	buildAtRuler: ->
-		@$rulerDom = Misc.addDom 'range', @timeline.ruler.$dom
+		@$rulerDom = TL.Misc.addDom 'range', @timeline.ruler.$dom
 		@renderAtRuler()
 		@placeAtRuler()
 
@@ -1045,7 +1043,7 @@ class Timeline.Range extends Timeline.Element
 	@renderAtRuler: ->
 		from = moment.unix(@raw.from).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		to = moment.unix(@raw.to).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
-		@$rulerDom.empty().append Misc.addDom('heading').text "#{from} — #{to}"
+		@$rulerDom.empty().append TL.Misc.addDom('heading').text "#{from} — #{to}"
 
 	placeAtRuler: ->
 		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
@@ -1055,7 +1053,7 @@ class Timeline.Range extends Timeline.Element
 			left: @getOffset()
 			width: @getInnerWidth()
 
-class Timeline.Dash extends Timeline.Element
+class TL.Element.Dash extends TL.Element
 	getClassName: ->
 		'dash'
 
@@ -1063,7 +1061,7 @@ class Timeline.Dash extends Timeline.Element
 		@$doms = []
 
 	build: (group)->
-		$dom = Misc.addDom 'dash', group.$dom
+		$dom = TL.Misc.addDom 'dash', group.$dom
 		$dom.addClass "id-#{@raw.rule.id}"
 		@$doms.push $dom
 		@render $dom
@@ -1084,7 +1082,7 @@ class Timeline.Dash extends Timeline.Element
 			$dom.css left: offset
 
 	buildAtRuler: (dash)->
-		@$rulerDom = Misc.addDom 'dash', @timeline.ruler.$dom
+		@$rulerDom = TL.Misc.addDom 'dash', @timeline.ruler.$dom
 		@$rulerDom.addClass "id-#{@raw.rule.id}"
 		@renderAtRuler()
 		@placeAtRuler()
@@ -1093,7 +1091,7 @@ class Timeline.Dash extends Timeline.Element
 		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
-		@$rulerDom.empty().append Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
+		@$rulerDom.empty().append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
 
 	placeAtRuler: ->
 		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
@@ -1103,12 +1101,12 @@ class Timeline.Dash extends Timeline.Element
 		if offset?
 			@$rulerDom.css left: offset
 
-class Timeline.Line extends Timeline.Element
+class TL.Element.Line extends TL.Element
 	getClassName: ->
 		'line'
 
 	getVerticalOffset: ->
-		Misc.sum(
+		TL.Misc.sum(
 			for elseLine in @timeline.lines when elseLine.raw.groupId is @raw.groupId
 				break if elseLine.raw.id is @raw.id
 				elseLine.getOuterHeight() 
@@ -1141,7 +1139,7 @@ class Timeline.Line extends Timeline.Element
 		@raw.extraOffsetAfter ? @cfg().extraOffset.after
 
 	build: ->
-		@$dom = Misc.addDom 'line', @getGroup().$dom
+		@$dom = TL.Misc.addDom 'line', @getGroup().$dom
 		@render()
 		@place()
 
@@ -1160,7 +1158,7 @@ class Timeline.Line extends Timeline.Element
 			height: @getInnerHeight()
 
 	buildAtSidebar: ->
-		@$sidebarDom = Misc.addDom 'line', @getGroup().$sidebarDom
+		@$sidebarDom = TL.Misc.addDom 'line', @getGroup().$sidebarDom
 		@renderAtSidebar()
 		@placeAtSidebar()
 
@@ -1168,7 +1166,7 @@ class Timeline.Line extends Timeline.Element
 		(@raw.renderAtSidebar ? @cfg().renderAtSidebar ? @constructor.renderAtSidebar).call @
 
 	@renderAtSidebar: ->
-		@$sidebarDom.empty().append Misc.addDom('heading').text @raw.id
+		@$sidebarDom.empty().append TL.Misc.addDom('heading').text @raw.id
 
 	placeAtSidebar: ->
 		(@raw.placeAtSidebar ? @cfg().placeAtSidebar ? @constructor.placeAtSidebar).call @
@@ -1178,7 +1176,7 @@ class Timeline.Line extends Timeline.Element
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
 
-class Timeline.Item extends Timeline.Element
+class TL.Element.Item extends TL.Element
 	getClassName: ->
 		'item'
 
@@ -1195,7 +1193,7 @@ class Timeline.Item extends Timeline.Element
 		@raw.canCrossRanges ? @cfg().canCrossRanges ? yes
 
 	build: ->
-		@$dom = Misc.addDom 'item', @getLine().getGroup().$dom
+		@$dom = TL.Misc.addDom 'item', @getLine().getGroup().$dom
 		@render()
 		@place()
 		@makeDraggable()
@@ -1206,7 +1204,7 @@ class Timeline.Item extends Timeline.Element
 		(@raw.render ? @cfg().render ? @constructor.render).call @
 
 	@render: ->
-		@$dom.empty().append Misc.addDom('text').text @raw.text
+		@$dom.empty().append TL.Misc.addDom('text').text @raw.text
 
 	place: ->
 		(@raw.place ? @cfg().place ? @constructor.place).call @
@@ -1226,11 +1224,11 @@ class Timeline.Item extends Timeline.Element
 
 		@$dom.draggable
 			helper: =>
-				Misc.addDom('drag-helper').css
+				TL.Misc.addDom('drag-helper').css
 					width: @$dom.css 'width'
 					height: @$dom.css 'height'
 			start: (e, ui)=>
-				@$dragHint = Misc.addDom 'drag-hint', @getLine().getGroup().$dom
+				@$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().$dom
 				modified = $.extend yes, {}, @
 				@timeline.fireEvent 'item:drag:start', item: @
 			stop: (e, ui)=>
@@ -1240,7 +1238,7 @@ class Timeline.Item extends Timeline.Element
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				dragInfo = 
-					parentOffset: Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 				
@@ -1277,7 +1275,7 @@ class Timeline.Item extends Timeline.Element
 			top: dragInfo.event.pageY - dragInfo.parentOffset.top
 
 	makeResizeableLeft: ->
-		$resizerLeft = Misc.addDom 'resizer-left', @$dom
+		$resizerLeft = TL.Misc.addDom 'resizer-left', @$dom
 		@$resizeHint = null
 		modified = null
 		originalDomOffset = null
@@ -1286,11 +1284,11 @@ class Timeline.Item extends Timeline.Element
 		$resizerLeft.draggable
 			axis: 'x'
 			helper: =>
-				Misc.addDom('resize-helper-left').css
+				TL.Misc.addDom('resize-helper-left').css
 					width: $resizerLeft.css 'width'
 					height: $resizerLeft.css 'height'
 			start: (e, ui)=>
-				@$resizeHint = Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
 				modified = $.extend yes, {}, @
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
@@ -1305,7 +1303,7 @@ class Timeline.Item extends Timeline.Element
 				group = @getLine().getGroup()
 				
 				resizeInfo = 
-					parentOffset: Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 					left: originalDomOffset + (ui.position.left - ui.originalPosition.left)
@@ -1326,7 +1324,7 @@ class Timeline.Item extends Timeline.Element
 						@place()
 
 	makeResizeableRight: ->
-		$resizerRight = Misc.addDom 'resizer-right', @$dom
+		$resizerRight = TL.Misc.addDom 'resizer-right', @$dom
 		@$resizeHint = null
 		modified = null
 		originalDomOffset = null
@@ -1335,11 +1333,11 @@ class Timeline.Item extends Timeline.Element
 		$resizerRight.draggable
 			axis: 'x'
 			helper: =>
-				Misc.addDom('resize-helper-right').css
+				TL.Misc.addDom('resize-helper-right').css
 					width: $resizerRight.css 'width'
 					height: $resizerRight.css 'height'
 			start: (e, ui)=>
-				@$resizeHint = Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
 				modified = $.extend yes, {}, @
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
@@ -1354,7 +1352,7 @@ class Timeline.Item extends Timeline.Element
 				group = @getLine().getGroup()
 				
 				resizeInfo = 
-					parentOffset: Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
 					event: e
 					ui: ui
 					left: originalDomOffset
@@ -1412,4 +1410,4 @@ class Timeline.Item extends Timeline.Element
 
 		yes
 
-window.Timeline = Timeline
+window.TL = TL
