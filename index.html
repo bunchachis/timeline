@@ -8,7 +8,8 @@
         </style>
 
         <script src="moment-with-locales.min.js"></script> 
-        <script>moment.locale('ru')</script>
+        <script src="moment-timezone-with-data-2010-2020.min.js"></script> 
+        <script>moment.locale('ru');</script>
         <script src="jquery-2.1.0.min.js"></script>
         <script src="jquery-ui.min.js"></script>
 
@@ -38,27 +39,30 @@
 	    			range: {
 	    				extraOffset: {after: 5},
 	    				renderAtRuler: function(){
-	    					this.$rulerDom.html($('<div class="tl-heading" />').text(moment.unix(this.raw.from).format('D MMMM YYYY')));
+	    					this.$rulerDom.html($('<div class="tl-heading" />').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
 	    			},
 	    			sidebar: {width: 170},
 	    			ruler: {height: 53},
 
-	    			scale: 3600 / 72, // sec/px
+	    			timezone: 'UTC',
+	    			scale: 10 * 60 / 12, // 10 mins per 12 px
 	    			snapResolution: 5 * 60,
 					dashRules: [
-						{id: 'half-hour', type: 'every', step: 30*60},
-						{id: '10-mins', type: 'every', step: 10*60},
+						{id: '0800', step: 24*60*60, offset: 8*60*60},
+						{id: 'hour', step: 60*60},
+						{id: 'half-hour', step: 30*60},
+						{id: '10-mins', step: 10*60},
 					],
 
 	    			ranges: [
 	    				{
-							from: moment('07.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-							to: moment('07.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss').unix()
+							from: moment.tz('07.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('07.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
 						},
 						{
-							from: moment('08.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-							to: moment('08.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+							from: moment.tz('08.07.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('08.07.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							extraOffsetAfter: 0
 	    				}
 	    			],
@@ -85,9 +89,9 @@
 
 				tl.listenEvent('item:modify', function(e){
 					$('#info').html(
-						moment.unix(e.item.raw.from).format('DD.MM.YYYY HH:mm:ss')
+						moment.unix(e.item.raw.from).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
 						+ ' — '
-						+ moment.unix(e.item.raw.to).format('DD.MM.YYYY HH:mm:ss')
+						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
 					);
 				})
 	    	});

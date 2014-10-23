@@ -1,6 +1,6 @@
 log = (x)-> console.log(x)
 
-mixOf = (base, mixins...) ->
+mixOf = (base, mixins...)->
 	class Mixed extends base
 		for mixin in mixins by -1 # earlier mixins override later ones
 			for name, method of mixin::
@@ -269,6 +269,7 @@ class Timeline extends Evented
 			render: null
 			place: null
 		scale: 1
+		timezone: 'UTC'
 		snapResolution: 1
 		height: '100%'
 		dashRules: []
@@ -279,23 +280,23 @@ class Timeline extends Evented
 	calcDashes: ->
 		dashes = []
 		for dashRule in @dashRules 
+			step = dashRule.step ? Infinity
+			offset = dashRule.offset ? 0
 			for range in @ranges
-				if dashRule.type is 'every'
-					dashes = dashes.concat @calcDashesEvery range, dashRule
+				if step is Infinity
+					time = offset
+				else 
+					time = Math.floor(range.raw.from / step) * step + offset
+
+				while time < range.raw.to
+					dashes.push {time, rule: dashRule} if time >= range.raw.from
+					time += step
 		
 		map = {}
 		map[dash.time] = dash for dash in dashes when !map[dash.time]?
 
 		dashes = []
 		dashes.push @createElement 'Dash', dash for time, dash of map
-		dashes
-
-	calcDashesEvery: (range, rule)->
-		dashes = []
-		time = range.raw.from
-		while time < range.raw.to
-			dashes.push {time, rule}
-			time += rule.step
 		dashes
 
 	getGroupById: (groupId)->
@@ -551,7 +552,7 @@ class InteractiveCreationMode
 			offset = mouseInfo.event.pageX - mouseInfo.parentOffset.left
 			time = @timeline.approxTime @timeline.getTime(offset), @stateName is 'SetEnding'
 			if time?
-				@$hint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+				@$hint.text moment.unix(time).tz(@timeline.config.timezone).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		else 
 			@$hint.empty()
 
@@ -1042,8 +1043,8 @@ class Timeline.Range extends Timeline.Element
 		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
-		from = moment.unix(@raw.from).format('DD.MM.YYYY HH:mm:ss')
-		to = moment.unix(@raw.to).format('DD.MM.YYYY HH:mm:ss')
+		from = moment.unix(@raw.from).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
+		to = moment.unix(@raw.to).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		@$rulerDom.empty().append Misc.addDom('heading').text "#{from} — #{to}"
 
 	placeAtRuler: ->
@@ -1092,6 +1093,7 @@ class Timeline.Dash extends Timeline.Element
 		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
 
 	@renderAtRuler: ->
+		@$rulerDom.empty().append Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
 
 	placeAtRuler: ->
 		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
@@ -1264,7 +1266,7 @@ class Timeline.Item extends Timeline.Element
 	@renderDragHint: (dragInfo)->
 		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 		if time?
-			@$dragHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+			@$dragHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
 	placeDragHint: (dragInfo)->
 		(@raw.placeDragHint ? @cfg().placeDragHint ? @constructor.placeDragHint).call @, dragInfo
@@ -1382,7 +1384,7 @@ class Timeline.Item extends Timeline.Element
 
 		time = @timeline.approxTime @timeline.getTime(offset), resizeInfo.side is 'right'
 		if time?
-			@$resizeHint.text moment.unix(time).format('DD.MM.YYYY HH:mm:ss')
+			@$resizeHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
 	placeResizeHint: (resizeInfo)->
 		(@raw.placeResizeHint ? @cfg().placeResizeHint ? @constructor.placeResizeHint).call @, resizeInfo
@@ -1409,6 +1411,5 @@ class Timeline.Item extends Timeline.Element
 		return no unless @canCrossRanges() or rangeFrom is rangeTo
 
 		yes
-
 
 window.Timeline = Timeline
