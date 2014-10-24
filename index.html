@@ -32,14 +32,14 @@
 	    			line: {
 	    				extraOffset: {after: 1},
 						renderAtSidebar: function(){
-							this.$sidebarDom.html(TL.Misc.addDom('tl-text').html(this.raw.html));
+							this.$sidebarDom.html(TL.Misc.addDom('text').html(this.raw.html));
 						}
 	    			},
 	    			group: {extraOffset: {after: 3}},
 	    			range: {
 	    				extraOffset: {after: 5},
 	    				renderAtRuler: function(){
-	    					this.$rulerDom.html(TL.Misc.addDom('tl-heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
+	    					this.$rulerDom.html(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
 	    			},
 	    			sidebar: {width: 170},
