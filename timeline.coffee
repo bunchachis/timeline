@@ -1410,4 +1410,20 @@ class TL.Element.Item extends TL.Element
 
 		yes
 
+	remove: ->
+		@destroy()
+		@timeline.items = @timeline.items.filter (item)=> @ isnt item
+
+	destroy: ->
+		if @$dom?
+			@$dom?.remove()
+			@$dom = null
+		if @$dragHint?
+			@$dragHint?.remove()
+			@$dragHint = null
+		if @$resizeHint?
+			@$resizeHint?.remove()
+			@$resizeHint = null
+
+
 window.TL = TL
