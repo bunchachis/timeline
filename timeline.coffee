@@ -232,25 +232,22 @@ class TL.Timeline extends TL.Evented
 			render: null
 			place: null
 		range:
-			extraOffset: 
-				before: 0
-				after: 0
+			extraOffsetBefore: null
+			extraOffsetAfter: null
 			render: null
 			place: null
 			renderAtRuler: null
 			placeAtRuler: null
 		group:
 			height: 'auto'
-			extraOffset:
-				before: 0
-				after: 0
+			extraOffsetBefore: null
+			extraOffsetAfter: null
 			render: null
 			place: null
 		line:
 			height: 50
-			extraOffset:
-				before: 0
-				after: 0
+			extraOffsetBefore: null
+			extraOffsetAfter: null
 			render: null
 			place: null
 			renderAtSidebar: null
@@ -639,13 +636,16 @@ class TL.Element extends TL.Sized
 		@timeline.config[@className] ? {}
 
 	getRawHeight: ->
-		@raw.height ? @cfg().height ? 'auto'
+		@lookupProperty 'height', 'auto'
 
 	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().extraOffset?.before ? 0
+		@lookupProperty 'extraOffsetBefore', 0
 
 	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @cfg().extraOffset?.after ? 0
+		@lookupProperty 'extraOffsetAfter', 0
+
+	lookupProperty: (name, fallbackValue)->
+		@raw[name] ? @cfg()[name] ? @constructor[name] ? fallbackValue
 
 class TL.Element.Container extends TL.Sized
 	constructor: (@$dom, @timeline)->
@@ -693,7 +693,7 @@ class TL.Element.Sidebar extends TL.Element
 		'sidebar'
 
 	isVisible: ->
-		@raw.isVisible ? @cfg().isVisible ? yes
+		@lookupProperty 'isVisible', yes
 
 	getOuterWidth: ->
 		if @isVisible()
@@ -703,7 +703,7 @@ class TL.Element.Sidebar extends TL.Element
 
 	getInnerWidth: ->
 		if @isVisible()
-			@raw.width ? @cfg().width ? 100
+			@lookupProperty 'width', 100
 		else
 			0
 
@@ -715,12 +715,12 @@ class TL.Element.Sidebar extends TL.Element
 		@buildGroups()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css if @timeline.config.ruler.position is 'top'
@@ -748,7 +748,7 @@ class TL.Element.Ruler extends TL.Element
 		'ruler'
 
 	isVisible: ->
-		@raw.isVisible ? @cfg().isVisible ? yes
+		@lookupProperty 'isVisible', yes
 
 	getRawHeight: ->
 		if @isVisible() then super() else 0
@@ -772,12 +772,12 @@ class TL.Element.Ruler extends TL.Element
 		@buildDashes()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css if @timeline.config.sidebar.position is 'left'
@@ -817,12 +817,12 @@ class TL.Element.Corner extends TL.Element
 		@place()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css if @timeline.config.ruler.position is 'top'
@@ -855,12 +855,12 @@ class TL.Element.Field extends TL.Element
 		@buildGroups()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css if @timeline.config.ruler.position is 'top'
@@ -920,12 +920,12 @@ class TL.Element.Group extends TL.Element
 		@buildItems()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css
@@ -957,12 +957,12 @@ class TL.Element.Group extends TL.Element
 		@buildLinesAtSidebar()
 
 	renderAtSidebar: ->
-		(@raw.renderAtSidebar ? @cfg().renderAtSidebar ? @constructor.renderAtSidebar).call @
+		@lookupProperty('renderAtSidebar').call @
 
 	@renderAtSidebar: ->
 
 	placeAtSidebar: ->
-		(@raw.placeAtSidebar ? @cfg().placeAtSidebar ? @constructor.placeAtSidebar).call @
+		@lookupProperty('placeAtSidebar').call @
 
 	@placeAtSidebar: ->
 		@$sidebarDom.css
@@ -1002,10 +1002,10 @@ class TL.Element.Range extends TL.Element
 		@getExtraOffsetAfter()
 
 	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().extraOffset.before
+		@lookupProperty 'extraOffsetBefore', 0
 
 	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @cfg().extraOffset.after
+		@lookupProperty 'extraOffsetAfter', 0
 
 	getTimeByOffset: (offset)->
 		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
@@ -1020,12 +1020,12 @@ class TL.Element.Range extends TL.Element
 		@place $dom
 
 	render: ($dom)->
-		(@raw.render ? @cfg().render ? @constructor.render).call @, $dom
+		@lookupProperty('render').call @, $dom
 
 	@render: ($dom)->
 
 	place: ($dom)->
-		(@raw.place ? @cfg().place ? @constructor.place).call @, $dom
+		@lookupProperty('place').call @, $dom
 
 	@place: ($dom)->
 		$dom.css
@@ -1038,7 +1038,7 @@ class TL.Element.Range extends TL.Element
 		@placeAtRuler()
 
 	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
+		@lookupProperty('renderAtRuler').call @
 
 	@renderAtRuler: ->
 		from = moment.unix(@raw.from).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
@@ -1046,7 +1046,7 @@ class TL.Element.Range extends TL.Element
 		@$rulerDom.empty().append TL.Misc.addDom('heading').text "#{from} — #{to}"
 
 	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
+		@lookupProperty('placeAtRuler').call @
 
 	@placeAtRuler: ->
 		@$rulerDom.css
@@ -1068,13 +1068,13 @@ class TL.Element.Dash extends TL.Element
 		@place $dom
 
 	render: ($dom)->
-		(@raw.render ? @cfg().render ? @constructor.render).call @, $dom
+		@lookupProperty('render').call @, $dom
 
 	@render: ($dom)->
 		$dom.empty()
 
 	place: ($dom)->
-		(@raw.place ? @cfg().place ? @constructor.place).call @, $dom
+		@lookupProperty('place').call @, $dom
 
 	@place: ($dom)->
 		offset = @timeline.getOffset @raw.time
@@ -1088,13 +1088,13 @@ class TL.Element.Dash extends TL.Element
 		@placeAtRuler()
 
 	renderAtRuler: ->
-		(@raw.renderAtRuler ? @cfg().renderAtRuler ? @constructor.renderAtRuler).call @
+		@lookupProperty('renderAtRuler').call @
 
 	@renderAtRuler: ->
 		@$rulerDom.empty().append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
 
 	placeAtRuler: ->
-		(@raw.placeAtRuler ? @cfg().placeAtRuler ? @constructor.placeAtRuler).call @
+		@lookupProperty('placeAtRuler').call @
 
 	@placeAtRuler: ->
 		offset = @timeline.getOffset @raw.time
@@ -1119,7 +1119,7 @@ class TL.Element.Line extends TL.Element
 		@getGroup()
 
 	getRawHeight: ->
-		@raw.height ? @cfg().height ? 0
+		@lookupProperty 'height', 0
 
 	getInnerHeight: ->
 		@calcSize 'Height'
@@ -1133,10 +1133,10 @@ class TL.Element.Line extends TL.Element
 		@timeline.getGroupById @raw.groupId
 
 	getExtraOffsetBefore: ->
-		@raw.extraOffsetBefore ? @cfg().extraOffset.before
+		@lookupProperty 'extraOffsetBefore', 0
 
 	getExtraOffsetAfter: ->
-		@raw.extraOffsetAfter ? @cfg().extraOffset.after
+		@lookupProperty 'extraOffsetAfter', 0
 
 	build: ->
 		@$dom = TL.Misc.addDom 'line', @getGroup().$dom
@@ -1144,13 +1144,13 @@ class TL.Element.Line extends TL.Element
 		@place()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 		@$dom.empty()
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		@$dom.css
@@ -1163,13 +1163,13 @@ class TL.Element.Line extends TL.Element
 		@placeAtSidebar()
 
 	renderAtSidebar: ->
-		(@raw.renderAtSidebar ? @cfg().renderAtSidebar ? @constructor.renderAtSidebar).call @
+		@lookupProperty('renderAtSidebar').call @
 
 	@renderAtSidebar: ->
 		@$sidebarDom.empty().append TL.Misc.addDom('heading').text @raw.id
 
 	placeAtSidebar: ->
-		(@raw.placeAtSidebar ? @cfg().placeAtSidebar ? @constructor.placeAtSidebar).call @
+		@lookupProperty('placeAtSidebar').call @
 
 	@placeAtSidebar: ->
 		@$sidebarDom.css
@@ -1187,10 +1187,10 @@ class TL.Element.Item extends TL.Element
 		@raw.to - @raw.from
 
 	isDraggable: ->
-		@raw.isDraggable ? @cfg().isDraggable ? yes
+		@lookupProperty 'isDraggable', yes
 
 	canCrossRanges: ->
-		@raw.canCrossRanges ? @cfg().canCrossRanges ? yes
+		@lookupProperty 'canCrossRanges', yes
 
 	build: ->
 		@$dom = TL.Misc.addDom 'item', @getLine().getGroup().$dom
@@ -1201,13 +1201,13 @@ class TL.Element.Item extends TL.Element
 		@makeResizeableRight()
 
 	render: ->
-		(@raw.render ? @cfg().render ? @constructor.render).call @
+		@lookupProperty('render').call @
 
 	@render: ->
 		@$dom.empty().append TL.Misc.addDom('text').text @raw.text
 
 	place: ->
-		(@raw.place ? @cfg().place ? @constructor.place).call @
+		@lookupProperty('place').call @
 
 	@place: ->
 		line = @getLine()
@@ -1259,7 +1259,7 @@ class TL.Element.Item extends TL.Element
 						@place()
 
 	renderDragHint: (dragInfo)->
-		(@raw.renderDragHint ? @cfg().renderDragHint ? @constructor.renderDragHint).call @, dragInfo
+		@lookupProperty('renderDragHint').call @, dragInfo
 
 	@renderDragHint: (dragInfo)->
 		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
@@ -1267,7 +1267,7 @@ class TL.Element.Item extends TL.Element
 			@$dragHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
 	placeDragHint: (dragInfo)->
-		(@raw.placeDragHint ? @cfg().placeDragHint ? @constructor.placeDragHint).call @, dragInfo
+		@lookupProperty('placeDragHint').call @, dragInfo
 
 	@placeDragHint: (dragInfo)-> 
 		@$dragHint.css
@@ -1372,7 +1372,7 @@ class TL.Element.Item extends TL.Element
 
 
 	renderResizeHint: (resizeInfo)->
-		(@raw.renderResizeHint ? @cfg().renderResizeHint ? @constructor.renderResizeHint).call @, resizeInfo
+		@lookupProperty('renderResizeHint').call @, resizeInfo
 
 	@renderResizeHint: (resizeInfo)->
 		offset = if resizeInfo.side is 'left'
@@ -1385,7 +1385,7 @@ class TL.Element.Item extends TL.Element
 			@$resizeHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
 	placeResizeHint: (resizeInfo)->
-		(@raw.placeResizeHint ? @cfg().placeResizeHint ? @constructor.placeResizeHint).call @, resizeInfo
+		@lookupProperty('placeResizeHint').call @, resizeInfo
 
 	@placeResizeHint: (resizeInfo)-> 
 		@$resizeHint.css
@@ -1393,7 +1393,7 @@ class TL.Element.Item extends TL.Element
 			top: resizeInfo.event.pageY - resizeInfo.parentOffset.top
 
 	isValid: ->
-		(@raw.isValid ? @cfg().isValid ? @constructor.isValid).call @
+		@lookupProperty('isValid').call @
 
 	@isValid: ->
 		return no unless @raw.from < @raw.to

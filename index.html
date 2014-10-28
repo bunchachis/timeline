@@ -30,14 +30,14 @@
     		$(function(){
 	    		tl = new TL.Timeline('#test', {
 	    			line: {
-	    				extraOffset: {after: 1},
+	    				extraOffsetAfter: 1,
 						renderAtSidebar: function(){
 							this.$sidebarDom.html(TL.Misc.addDom('text').html(this.raw.html));
 						}
 	    			},
-	    			group: {extraOffset: {after: 3}},
+	    			group: {extraOffsetAfter: 3},
 	    			range: {
-	    				extraOffset: {after: 5},
+	    				extraOffsetAfter: 5,
 	    				renderAtRuler: function(){
 	    					this.$rulerDom.html(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
