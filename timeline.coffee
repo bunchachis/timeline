@@ -1001,12 +1001,6 @@ class TL.Element.Range extends TL.Element
 		@getExtraOffsetBefore() +
 		@getExtraOffsetAfter()
 
-	getExtraOffsetBefore: ->
-		@lookupProperty 'extraOffsetBefore', 0
-
-	getExtraOffsetAfter: ->
-		@lookupProperty 'extraOffsetAfter', 0
-
 	getTimeByOffset: (offset)->
 		@getTimeByInternalOffset(offset - @getOffset() - @getExtraOffsetBefore())
 
@@ -1131,12 +1125,6 @@ class TL.Element.Line extends TL.Element
 
 	getGroup: ->
 		@timeline.getGroupById @raw.groupId
-
-	getExtraOffsetBefore: ->
-		@lookupProperty 'extraOffsetBefore', 0
-
-	getExtraOffsetAfter: ->
-		@lookupProperty 'extraOffsetAfter', 0
 
 	build: ->
 		@$dom = TL.Misc.addDom 'line', @getGroup().$dom
