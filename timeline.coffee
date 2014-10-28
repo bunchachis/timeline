@@ -145,12 +145,16 @@ class TL.Timeline extends TL.Evented
 
 		@checkVerticalFitting()
 
-		@root.build()
-
 		@icm = new TL.InteractiveCreationMode @
 
+		@build()
+
+	build: ->
+		@root.build()
+		@icm.build()
+
 	createElement: (type, data = {})->
-		(@config.renderAtSidebar ? @constructor.createElement).call @, type, data
+		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
 
 	@createElement: (type, data = {})->
 		new TL.Element[type] @, data
@@ -214,52 +218,52 @@ class TL.Timeline extends TL.Evented
 
 	getDefaultConfig: ->
 		field:
-			render: null
+			fill: null
 			place: null
 		corner:
-			render: null
+			fill: null
 			place: null
 		ruler:
 			isVisible: yes
 			position: 'top'
 			height: 50
-			render: null
+			fill: null
 			place: null
 		sidebar:
 			isVisible: yes
 			position: 'left'
 			width: 100
-			render: null
+			fill: null
 			place: null
 		range:
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			render: null
+			fill: null
 			place: null
-			renderAtRuler: null
+			fillAtRuler: null
 			placeAtRuler: null
 		group:
 			height: 'auto'
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			render: null
+			fill: null
 			place: null
 		line:
 			height: 50
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			render: null
+			fill: null
 			place: null
-			renderAtSidebar: null
+			fillAtSidebar: null
 			placeAtSidebar: null
 		item:
 			isDraggable: yes
 			canCrossRanges: yes
-			render: null
+			fill: null
 			place: null
 			isValid: null
 		dash:
-			render: null
+			fill: null
 			place: null
 		scale: 1
 		timezone: 'UTC'
@@ -358,7 +362,6 @@ class TL.Timeline extends TL.Evented
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
-		@build()
 
 	build: ->
 		@$helpers = []
@@ -414,7 +417,7 @@ class TL.InteractiveCreationMode
 			@placeDashes()
 			@placeHelpers()
 			@placeHint mouseInfo
-			@renderHint mouseInfo
+			@fillHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
@@ -423,7 +426,7 @@ class TL.InteractiveCreationMode
 			@placeDashes()
 			@placeHelpers()
 			@placeHint {}
-			@renderHint {}
+			@fillHint {}
 		@timeline.field.$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
@@ -435,7 +438,7 @@ class TL.InteractiveCreationMode
 		@placeDashes()
 		@placeHelpers()
 		@placeHint {}
-		@renderHint {}
+		@fillHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
 		@timeline.field.$dom.off 'mouseleave', @leaveHandler
@@ -460,7 +463,7 @@ class TL.InteractiveCreationMode
 			@placeDashes()
 			@placeHelpers()
 			@placeHint mouseInfo
-			@renderHint mouseInfo
+			@fillHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
@@ -469,7 +472,7 @@ class TL.InteractiveCreationMode
 			@placeDashes()
 			@placeHelpers()
 			@placeHint {}
-			@renderHint {}
+			@fillHint {}
 		@timeline.field.$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
@@ -489,7 +492,7 @@ class TL.InteractiveCreationMode
 		@placeDashes()
 		@placeHelpers()
 		@placeHint {}
-		@renderHint {}
+		@fillHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
 		@timeline.field.$dom.off 'mouseleave', @leaveHandler
@@ -539,10 +542,10 @@ class TL.InteractiveCreationMode
 			$helper.css
 				display: 'none'
 
-	renderHint: (mouseInfo)->
-		(@timeline.config.icm?.renderHint ? @constructor.renderHint).call @, mouseInfo
+	fillHint: (mouseInfo)->
+		(@timeline.config.icm?.fillHint ? @constructor.fillHint).call @, mouseInfo
 
-	@renderHint: (mouseInfo)->
+	@fillHint: (mouseInfo)->
 		if @isActive and mouseInfo.group?
 			offset = mouseInfo.event.pageX - mouseInfo.parentOffset.left
 			time = @timeline.approxTime @timeline.getTime(offset), @stateName is 'SetEnding'
@@ -665,7 +668,7 @@ class TL.Element.Root extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'root', @timeline.container.$dom
-		@render()
+		@fill()
 		@place()
 
 		@timeline.sidebar.build()
@@ -673,7 +676,7 @@ class TL.Element.Root extends TL.Element
 		@timeline.corner.build()
 		@timeline.field.build()
 
-	render: ->
+	fill: ->
 
 	place: ->
 		@$dom.css
@@ -709,15 +712,15 @@ class TL.Element.Sidebar extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'sidebar', @timeline.root.$dom
-		@render()
+		@fill()
 		@place()
 
 		@buildGroups()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -765,16 +768,16 @@ class TL.Element.Ruler extends TL.Element
 	build: ->
 		@$dom = TL.Misc.addDom 'ruler', @timeline.root.$dom
 		TL.Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
-		@render()
+		@fill()
 		@place()
 		
 		@buildRanges()
 		@buildDashes()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -813,13 +816,13 @@ class TL.Element.Corner extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'corner', @timeline.root.$dom
-		@render()
+		@fill()
 		@place()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -849,15 +852,15 @@ class TL.Element.Field extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'field', @timeline.root.$dom
-		@render()
+		@fill()
 		@place()
 
 		@buildGroups()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -911,7 +914,7 @@ class TL.Element.Group extends TL.Element
 			},
 			{axis: 'y', getTarget: => @$sidebarDom ? null}
 		]
-		@render()
+		@fill()
 		@place()
 
 		@buildLines()
@@ -919,10 +922,10 @@ class TL.Element.Group extends TL.Element
 		@buildDashes()
 		@buildItems()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -951,15 +954,15 @@ class TL.Element.Group extends TL.Element
 	buildAtSidebar: ->
 		@$sidebarDom = TL.Misc.addDom 'group', @timeline.sidebar.$dom
 		TL.Misc.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
-		@renderAtSidebar()
+		@fillAtSidebar()
 		@placeAtSidebar()
 
 		@buildLinesAtSidebar()
 
-	renderAtSidebar: ->
-		@lookupProperty('renderAtSidebar').call @
+	fillAtSidebar: ->
+		@lookupProperty('fillAtSidebar').call @
 
-	@renderAtSidebar: ->
+	@fillAtSidebar: ->
 
 	placeAtSidebar: ->
 		@lookupProperty('placeAtSidebar').call @
@@ -1010,13 +1013,13 @@ class TL.Element.Range extends TL.Element
 	build: (group)->
 		$dom = TL.Misc.addDom 'range', group.$dom
 		@$doms.push $dom
-		@render $dom
+		@fill $dom
 		@place $dom
 
-	render: ($dom)->
-		@lookupProperty('render').call @, $dom
+	fill: ($dom)->
+		@lookupProperty('fill').call @, $dom
 
-	@render: ($dom)->
+	@fill: ($dom)->
 
 	place: ($dom)->
 		@lookupProperty('place').call @, $dom
@@ -1028,16 +1031,17 @@ class TL.Element.Range extends TL.Element
 
 	buildAtRuler: ->
 		@$rulerDom = TL.Misc.addDom 'range', @timeline.ruler.$dom
-		@renderAtRuler()
+		@fillAtRuler()
 		@placeAtRuler()
 
-	renderAtRuler: ->
-		@lookupProperty('renderAtRuler').call @
+	fillAtRuler: ->
+		@lookupProperty('fillAtRuler').call @
 
-	@renderAtRuler: ->
+	@fillAtRuler: ->
 		from = moment.unix(@raw.from).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		to = moment.unix(@raw.to).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
-		@$rulerDom.empty().append TL.Misc.addDom('heading').text "#{from} — #{to}"
+		@$rulerDom.children('.tl-heading').remove()
+		@$rulerDom.append TL.Misc.addDom('heading').text "#{from} — #{to}"
 
 	placeAtRuler: ->
 		@lookupProperty('placeAtRuler').call @
@@ -1058,14 +1062,13 @@ class TL.Element.Dash extends TL.Element
 		$dom = TL.Misc.addDom 'dash', group.$dom
 		$dom.addClass "id-#{@raw.rule.id}"
 		@$doms.push $dom
-		@render $dom
+		@fill $dom
 		@place $dom
 
-	render: ($dom)->
-		@lookupProperty('render').call @, $dom
+	fill: ($dom)->
+		@lookupProperty('fill').call @, $dom
 
-	@render: ($dom)->
-		$dom.empty()
+	@fill: ($dom)->
 
 	place: ($dom)->
 		@lookupProperty('place').call @, $dom
@@ -1078,14 +1081,15 @@ class TL.Element.Dash extends TL.Element
 	buildAtRuler: (dash)->
 		@$rulerDom = TL.Misc.addDom 'dash', @timeline.ruler.$dom
 		@$rulerDom.addClass "id-#{@raw.rule.id}"
-		@renderAtRuler()
+		@fillAtRuler()
 		@placeAtRuler()
 
-	renderAtRuler: ->
-		@lookupProperty('renderAtRuler').call @
+	fillAtRuler: ->
+		@lookupProperty('fillAtRuler').call @
 
-	@renderAtRuler: ->
-		@$rulerDom.empty().append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
+	@fillAtRuler: ->
+		@$rulerDom.children('.tl-text').remove()
+		@$rulerDom.append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
 
 	placeAtRuler: ->
 		@lookupProperty('placeAtRuler').call @
@@ -1128,14 +1132,13 @@ class TL.Element.Line extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'line', @getGroup().$dom
-		@render()
+		@fill()
 		@place()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
-		@$dom.empty()
+	@fill: ->
 
 	place: ->
 		@lookupProperty('place').call @
@@ -1147,14 +1150,15 @@ class TL.Element.Line extends TL.Element
 
 	buildAtSidebar: ->
 		@$sidebarDom = TL.Misc.addDom 'line', @getGroup().$sidebarDom
-		@renderAtSidebar()
+		@fillAtSidebar()
 		@placeAtSidebar()
 
-	renderAtSidebar: ->
-		@lookupProperty('renderAtSidebar').call @
+	fillAtSidebar: ->
+		@lookupProperty('fillAtSidebar').call @
 
-	@renderAtSidebar: ->
-		@$sidebarDom.empty().append TL.Misc.addDom('heading').text @raw.id
+	@fillAtSidebar: ->
+		@$sidebarDom.children('.tl-heading').remove()
+		@$sidebarDom.append TL.Misc.addDom('heading').text @raw.id
 
 	placeAtSidebar: ->
 		@lookupProperty('placeAtSidebar').call @
@@ -1182,17 +1186,18 @@ class TL.Element.Item extends TL.Element
 
 	build: ->
 		@$dom = TL.Misc.addDom 'item', @getLine().getGroup().$dom
-		@render()
+		@fill()
 		@place()
 		@makeDraggable()
 		@makeResizeableLeft()
 		@makeResizeableRight()
 
-	render: ->
-		@lookupProperty('render').call @
+	fill: ->
+		@lookupProperty('fill').call @
 
-	@render: ->
-		@$dom.empty().append TL.Misc.addDom('text').text @raw.text
+	@fill: ->
+		@$dom.children('.tl-text').remove()
+		@$dom.append TL.Misc.addDom('text').text @raw.text
 
 	place: ->
 		@lookupProperty('place').call @
@@ -1230,7 +1235,7 @@ class TL.Element.Item extends TL.Element
 					event: e
 					ui: ui
 				
-				@renderDragHint dragInfo
+				@fillDragHint dragInfo
 				@placeDragHint dragInfo
 				
 
@@ -1246,10 +1251,10 @@ class TL.Element.Item extends TL.Element
 						$.extend @raw, modified.raw
 						@place()
 
-	renderDragHint: (dragInfo)->
-		@lookupProperty('renderDragHint').call @, dragInfo
+	fillDragHint: (dragInfo)->
+		@lookupProperty('fillDragHint').call @, dragInfo
 
-	@renderDragHint: (dragInfo)->
+	@fillDragHint: (dragInfo)->
 		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 		if time?
 			@$dragHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
@@ -1300,7 +1305,7 @@ class TL.Element.Item extends TL.Element
 
 				$(ui.helper).css marginLeft: -(ui.position.left - ui.originalPosition.left)
 				 
-				@renderResizeHint resizeInfo
+				@fillResizeHint resizeInfo
 				@placeResizeHint resizeInfo
 				
 				modified.raw.from = @timeline.approxTime @timeline.getTime resizeInfo.left
@@ -1347,7 +1352,7 @@ class TL.Element.Item extends TL.Element
 					width: originalDomWidth + (ui.position.left - ui.originalPosition.left)
 					side: 'right'
 				 
-				@renderResizeHint resizeInfo
+				@fillResizeHint resizeInfo
 				@placeResizeHint resizeInfo
 				
 				modified.raw.to = @timeline.approxTime @timeline.getTime(resizeInfo.left + resizeInfo.width), yes
@@ -1359,10 +1364,10 @@ class TL.Element.Item extends TL.Element
 						@place()
 
 
-	renderResizeHint: (resizeInfo)->
-		@lookupProperty('renderResizeHint').call @, resizeInfo
+	fillResizeHint: (resizeInfo)->
+		@lookupProperty('fillResizeHint').call @, resizeInfo
 
-	@renderResizeHint: (resizeInfo)->
+	@fillResizeHint: (resizeInfo)->
 		offset = if resizeInfo.side is 'left'
 			resizeInfo.left
 		else 
