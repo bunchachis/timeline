@@ -1,6 +1,6 @@
 TL = {}
 
-TL.mixOf = (Base, mixins...) ->
+TL.mixOf = (mixins...) ->
 	class Mixed
 		@mixinInitters = []
 		@mixinDeinitters = []
@@ -157,27 +157,40 @@ class TL.Timeline extends TL.EventEmitter
 		@field = @createElement 'Field'
 		
 		@groups = []
+		@ranges = []
+		@lines = []
+		@dashRules = []
+		@dashes = []
+		@items = []
+
 		@rawAddGroup group for group in @config.groups
 		@sortGroups()
 
-		@ranges = []
 		@rawAddRange range for range in @config.ranges
 		@sortRanges()
 
-		@lines = []
 		@rawAddLine line for line in @config.lines
 		@sortLines()
 
-		@dashRules = []
 		@rawAddDashRule rule for rule in @config.dashRules
 		@sortDashRules()
 
-		@items = []
 		@rawAddItem @createItem rawItem for rawItem in items
 
 		@checkVerticalFitting()
 
 		@icm = new TL.InteractiveCreationMode @
+
+	render: ->
+		@root.render()
+		@sidebar.render()
+		@ruler.render()
+		@corner.render()
+		@field.render()
+		group.render() for group in @groups
+		range.render() for range in @ranges
+		line.render() for line in @lines
+		dash.render() for dash in @dashes
 
 	createElement: (type, data = {})->
 		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
@@ -220,10 +233,12 @@ class TL.Timeline extends TL.EventEmitter
 
 	rawAddDashRule: (rule)->
 		for elseRule in @dashRules
-			if elseRule.id is rule.id
+			if elseRule.raw.id is rule.id
 				throw 'Can\'t add dash rule with same id as existing one has'
 
-		@dashRules.push rule
+		dashRule = @createElement 'DashRule', rule
+		@dashRules.push dashRule
+		dashRule.init()
 
 	sortDashRules: ->
 		@dashRules = @dashRules.sort (a, b)->
@@ -240,7 +255,6 @@ class TL.Timeline extends TL.EventEmitter
 
 	addItem: (item)->
 		@rawAddItem item
-		item.build()
 
 	getDefaultConfig: ->
 		field:
@@ -301,28 +315,6 @@ class TL.Timeline extends TL.EventEmitter
 		groups: []
 		lines: []
 
-	calcDashes: ->
-		dashes = []
-		for dashRule in @dashRules 
-			step = dashRule.step ? Infinity
-			offset = dashRule.offset ? 0
-			for range in @ranges
-				if step is Infinity
-					time = offset
-				else 
-					time = Math.floor(range.raw.from / step) * step + offset
-
-				while time < range.raw.to
-					dashes.push {time, rule: dashRule} if time >= range.raw.from
-					time += step
-		
-		map = {}
-		map[dash.time] = dash for dash in dashes when !map[dash.time]?
-
-		dashes = []
-		dashes.push @createElement 'Dash', dash for time, dash of map
-		dashes
-
 	getGroupById: (groupId)->
 		if groupId?
 			for group in @groups
@@ -352,6 +344,11 @@ class TL.Timeline extends TL.EventEmitter
 			lineEnd = lineStart + line.getInnerHeight()
 			if lineStart <= verticalOffset < lineEnd
 				return line
+
+	getDashRuleById: (ruleId)->
+		for rule in @dashRules
+			if rule.raw.id is ruleId
+				return rule
 
 	getTime: (offset)->
 		range = @getRangeByOffset offset
@@ -394,9 +391,9 @@ class TL.InteractiveCreationMode
 		@$helpers = []
 		@$dashes = []
 		for group in @timeline.groups
-			$dash = TL.Misc.addDom 'icm-dash', group.$dom 
+			$dash = TL.Misc.addDom 'icm-dash', group.getView().$dom 
 			@$dashes.push $dash
-			$helper = TL.Misc.addDom 'icm-helper', group.$dom
+			$helper = TL.Misc.addDom 'icm-helper', group.getView().$dom
 			@$helpers.push $helper
 
 		@$hint = TL.Misc.addDom 'icm-hint'
@@ -429,12 +426,12 @@ class TL.InteractiveCreationMode
 		@stateName = null
 
 	activateStateSetBeginning: ->
-		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.$dom).offset()
+		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.getView().$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group?
-				groupOffset = TL.Misc.getScrollContainer(group.$dom).offset()
+				groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
 				mouseInfo.group = group
 				mouseInfo.parentOffset = groupOffset
 				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
@@ -445,7 +442,7 @@ class TL.InteractiveCreationMode
 			@render()
 			@placeHint mouseInfo
 			@fillHint mouseInfo
-		@timeline.field.$dom.on 'mousemove', @moveHandler
+		@timeline.field.getView().$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
 			@from = null
@@ -453,31 +450,31 @@ class TL.InteractiveCreationMode
 			@render()
 			@placeHint {}
 			@fillHint {}
-		@timeline.field.$dom.on 'mouseleave', @leaveHandler
+		@timeline.field.getView().$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
 			if @from?
 				@activateState 'SetEnding'
-		@timeline.field.$dom.on 'click', @clickHandler	
+		@timeline.field.getView().$dom.on 'click', @clickHandler	
 
 	deactivateStateSetBeginning: ->
 		@render()
 		@placeHint {}
 		@fillHint {}
-		@timeline.field.$dom.off 'mousemove', @moveHandler
+		@timeline.field.getView().$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
-		@timeline.field.$dom.off 'mouseleave', @leaveHandler
+		@timeline.field.getView().$dom.off 'mouseleave', @leaveHandler
 		@leaveHandler = null
-		@timeline.field.$dom.off 'click', @clickHandler
+		@timeline.field.getView().$dom.off 'click', @clickHandler
 		@clickHandler = null
 
 	activateStateSetEnding: ->
-		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.$dom).offset()
+		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.getView().$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group?
-				groupOffset = TL.Misc.getScrollContainer(group.$dom).offset()
+				groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
 				mouseInfo.group = group
 				mouseInfo.parentOffset = groupOffset
 				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
@@ -488,7 +485,7 @@ class TL.InteractiveCreationMode
 			@render()
 			@placeHint mouseInfo
 			@fillHint mouseInfo
-		@timeline.field.$dom.on 'mousemove', @moveHandler
+		@timeline.field.getView().$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
 			@to = null
@@ -496,11 +493,11 @@ class TL.InteractiveCreationMode
 			@render()
 			@placeHint {}
 			@fillHint {}
-		@timeline.field.$dom.on 'mouseleave', @leaveHandler
+		@timeline.field.getView().$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
 			if @to?
-				item = @timeline.createItem $.extend {}, @itemTemplate, 
+				item = @timeline.createItem $.extend @itemTemplate, 
 					from: @from
 					to: @to
 					lineId: @line.raw.id
@@ -509,17 +506,17 @@ class TL.InteractiveCreationMode
 					if @timeline.fireEvent 'item:create', {item}
 						@timeline.addItem item
 						@deactivate()
-		@timeline.field.$dom.on 'click', @clickHandler	
+		@timeline.field.getView().$dom.on 'click', @clickHandler	
 
 	deactivateStateSetEnding: ->
 		@render()
 		@placeHint {}
 		@fillHint {}
-		@timeline.field.$dom.off 'mousemove', @moveHandler
+		@timeline.field.getView().$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
-		@timeline.field.$dom.off 'mouseleave', @leaveHandler
+		@timeline.field.getView().$dom.off 'mouseleave', @leaveHandler
 		@leaveHandler = null
-		@timeline.field.$dom.off 'click', @clickHandler
+		@timeline.field.getView().$dom.off 'click', @clickHandler
 		@clickHandler = null
 
 	placeDashes: ->
@@ -581,7 +578,7 @@ class TL.InteractiveCreationMode
 
 	@placeHint: (mouseInfo)->
 		if @isActive and mouseInfo.group?
-			@$hint.appendTo TL.Misc.getScrollContainer mouseInfo.group.$dom
+			@$hint.appendTo TL.Misc.getScrollContainer mouseInfo.group.getView().$dom
 			@$hint.css
 				left: mouseInfo.event.pageX - mouseInfo.parentOffset.left
 				top: mouseInfo.event.pageY - mouseInfo.parentOffset.top
@@ -706,7 +703,7 @@ class TL.MultiViewed
 		@views[name]
 
 	render: ->
-		for name, view of @$views
+		for name, view of @views
 			@['render' + TL.Misc.ucFirst(view.type)].call @, view
 
 class TL.Element extends TL.mixOf TL.Sized, TL.Registrable, TL.MultiViewed, TL.ResourceHolder
@@ -755,7 +752,6 @@ class TL.Element.Root extends TL.Element
 		@createView 'default', @timeline.container.getView()
 
 	createViewDom: (parent)->
-		console.log parent
 		TL.Misc.addDom 'root', parent.$dom
 
 	renderDefault: (view)->
@@ -999,17 +995,17 @@ class TL.Element.Group extends TL.Element
 		$dom = TL.Misc.addDom 'group', parent.$dom
 		$dom.data 'timeline-host-object', @
 		switch type
-			when 'field'
+			when 'default'
 				TL.Misc.scrollize $dom, 'xy', [
 					{axis: 'x', getTarget: => 
-						targets = (elseGroup.getView('field').$dom for elseGroup in @timeline.groups when elseGroup isnt @)
-						targets.push $rulerDom if ($rulerDom = @timeline.ruler.getView('root').$dom)?
+						targets = (elseGroup.getView().$dom for elseGroup in @timeline.groups when elseGroup isnt @)
+						targets.push $rulerDom if ($rulerDom = @timeline.ruler.getView().$dom)?
 						targets
 					},
-					{axis: 'y', getTarget: => @getView('sidebar')?.$dom ? null}
+					{axis: 'y', getTarget: => @getView('atSidebar')?.$dom ? null}
 				]
-			when 'sidebar'
-				TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView('field').$dom}]
+			when 'atSidebar'
+				TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView().$dom}]
 
 		$dom
 
@@ -1132,12 +1128,15 @@ class TL.Element.Dash extends TL.Element
 	getClassName: ->
 		'dash'
 
+	getRule: ->
+		@timeline.getDashRuleById @raw.ruleId
+
 	createViews: ->
 		@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
 		@createView 'atRuler', @timeline.ruler.getView()
 
 	createViewDom: (parent)->
-		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@raw.rule.id}"
+		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@getRule().raw.id}"
 
 	renderDefault: (view)->
 		@fillDefault view
@@ -1157,8 +1156,8 @@ class TL.Element.Dash extends TL.Element
 			view.$dom.css left: offset
 
 	renderAtRuler: (view)->
-		@fillInRuler view
-		@placeInRuler view
+		@fillAtRuler view
+		@placeAtRuler view
 
 	fillAtRuler: (view)->
 		@lookupProperty('fillAtRuler').call @, view
@@ -1208,7 +1207,7 @@ class TL.Element.Line extends TL.Element
 
 	createViews: ->
 		@createView 'default', @getGroup().getView()
-		@createView 'atSidebar', @getGroup().getView()
+		@createView 'atSidebar', @getGroup().getView 'atSidebar'
 
 	createViewDom: (parent)->
 		TL.Misc.addDom('line', parent.$dom).addClass "id-#{@raw.id}"
@@ -1297,6 +1296,10 @@ class TL.Element.Item extends TL.Element
 			left: offset
 			width: @timeline.getOffset(@raw.to-1) - offset
 	
+	getClone: ->
+		clone = $.extend {}, @
+		clone.raw = $.extend {}, @raw
+
 	makeDraggable: ->
 		@$dragHint = null
 		modified = null
@@ -1308,7 +1311,7 @@ class TL.Element.Item extends TL.Element
 					height: @$dom.css 'height'
 			start: (e, ui)=>
 				@$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().$dom
-				modified = $.extend yes, {}, @
+				modified = @getClone()
 				@timeline.fireEvent 'item:drag:start', item: @
 			stop: (e, ui)=>
 				@$dragHint.remove()
@@ -1368,7 +1371,7 @@ class TL.Element.Item extends TL.Element
 					height: $resizerLeft.css 'height'
 			start: (e, ui)=>
 				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
-				modified = $.extend yes, {}, @
+				modified = @getClone()
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
 				@timeline.fireEvent 'item:resize:start', item: @
@@ -1417,7 +1420,7 @@ class TL.Element.Item extends TL.Element
 					height: $resizerRight.css 'height'
 			start: (e, ui)=>
 				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
-				modified = $.extend yes, {}, @
+				modified = @getClone()
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
 				@timeline.fireEvent 'item:resize:start', item: @
@@ -1498,5 +1501,34 @@ class TL.Element.Item extends TL.Element
 			view.$dom.remove()
 			view.$dom = null
 			@views[name] = null
+
+class TL.Element.DashRule
+	constructor: (@timeline, @raw = {})->
+
+	init: ->
+		@insertDashes()
+
+	removeDashes: ->
+		dash.remove() for dash in @timeline.dashes when @raw.id is dash.raw.ruleId
+
+	insertDashes: ->
+		@timeline.dashes = @timeline.dashes.concat @calculateDashes()
+
+	calculateDashes: ->
+		dashes = []
+		step = @raw.step ? Infinity
+		offset = @raw.offset ? 0
+
+		for range in @timeline.ranges
+			if step is Infinity
+				time = offset
+			else
+				time = Math.floor(range.raw.from / step) * step + offset
+
+			while time < range.raw.to
+				dashes.push @timeline.createElement 'Dash', {time, ruleId: @raw.id} if time >= range.raw.from
+				time += step
+
+		dashes
 
 window.TL = TL

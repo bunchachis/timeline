@@ -31,17 +31,17 @@
 	    		tl = new TL.Timeline('#test', {
 	    			line: {
 	    				extraOffsetAfter: 1,
-						fillAtSidebar: function(){
-							this.$sidebarDom.children('.tl-text').remove()
-							this.$sidebarDom.append(TL.Misc.addDom('text').html(this.raw.html));
+						fillAtSidebar: function(view){
+							view.$dom.children('.tl-text').remove()
+							view.$dom.append(TL.Misc.addDom('text').html(this.raw.html));
 						}
 	    			},
 	    			group: {extraOffsetAfter: 3},
 	    			range: {
 	    				extraOffsetAfter: 5,
-	    				fillAtRuler: function(){
-	    					this.$rulerDom.children('.tl-text').remove()
-	    					this.$rulerDom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
+	    				fillAtRuler: function(view){
+	    					view.$dom.children('.tl-text').remove()
+	    					view.$dom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
 	    			},
 	    			sidebar: {width: 170},
