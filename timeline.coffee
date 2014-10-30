@@ -1,5 +1,26 @@
 TL = {}
 
+TL.mixOf = (Base, mixins...) ->
+	class Mixed
+		@mixinInitters = []
+		@mixinDeinitters = []
+
+		initMixins: ->
+			initter.call @ for initter in @constructor.mixinInitters
+			null
+
+		deinitMixins: ->
+			deinitter.call @ for deinitter in @constructor.mixinDeinitters
+			null
+
+		for Mixin in mixins by -1
+			for name, method of Mixin::
+				switch name
+					when 'init' then Mixed.mixinInitters.push method
+					when 'deinit' then Mixed.mixinDeinitters.push method
+					else Mixed::[name] = method
+	Mixed
+
 class TL.Resource
 	construct: (@destroy)->
 		@holdLevel = 0
@@ -12,7 +33,18 @@ class TL.Resource
 			@destroy()
 		@destroy = undefined
 
-class TL.Evented
+class TL.ResourceHolder
+	holdResource: (resource)->
+		@heldResources ?= []
+		resource.hold()
+		@heldResources.push resource
+
+	releaseResources: ->
+		if @heldResources?
+			resource.release() for resource in @heldResources
+			@heldResources = []
+
+class TL.EventEmitter
 	listenEvent: (name, fn)->
 		@eventListeners ?= {}
 		@eventListeners[name] ?= lastId: 0, funcs: []
@@ -113,7 +145,7 @@ class TL.Sized
 		verb = @getRawHeight()
 		$.type(verb) is 'string' and (verb.indexOf('part') > -1 or verb.indexOf('%') > -1)
 
-class TL.Timeline extends TL.Evented
+class TL.Timeline extends TL.EventEmitter
 	constructor: (container, config = {}, items = [])->
 		@container = new TL.Element.Container $(container), @
 		@config = $.extend yes, @getDefaultConfig(), config
@@ -124,13 +156,13 @@ class TL.Timeline extends TL.Evented
 		@corner = @createElement 'Corner'
 		@field = @createElement 'Field'
 		
-		@ranges = []
-		@rawAddRange range for range in @config.ranges
-		@sortRanges()
-
 		@groups = []
 		@rawAddGroup group for group in @config.groups
 		@sortGroups()
+
+		@ranges = []
+		@rawAddRange range for range in @config.ranges
+		@sortRanges()
 
 		@lines = []
 		@rawAddLine line for line in @config.lines
@@ -146,12 +178,6 @@ class TL.Timeline extends TL.Evented
 		@checkVerticalFitting()
 
 		@icm = new TL.InteractiveCreationMode @
-
-		@build()
-
-	build: ->
-		@root.build()
-		@icm.build()
 
 	createElement: (type, data = {})->
 		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
@@ -362,6 +388,7 @@ class TL.Timeline extends TL.Evented
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
+		@build()
 
 	build: ->
 		@$helpers = []
@@ -374,6 +401,7 @@ class TL.InteractiveCreationMode
 
 		@$hint = TL.Misc.addDom 'icm-hint'
 
+	render: ->
 		@placeDashes()
 		@placeHelpers()
 
@@ -414,8 +442,7 @@ class TL.InteractiveCreationMode
 			else
 				@from = null
 
-			@placeDashes()
-			@placeHelpers()
+			@render()
 			@placeHint mouseInfo
 			@fillHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
@@ -423,8 +450,7 @@ class TL.InteractiveCreationMode
 		@leaveHandler = (e)=>
 			@from = null
 
-			@placeDashes()
-			@placeHelpers()
+			@render()
 			@placeHint {}
 			@fillHint {}
 		@timeline.field.$dom.on 'mouseleave', @leaveHandler
@@ -435,8 +461,7 @@ class TL.InteractiveCreationMode
 		@timeline.field.$dom.on 'click', @clickHandler	
 
 	deactivateStateSetBeginning: ->
-		@placeDashes()
-		@placeHelpers()
+		@render()
 		@placeHint {}
 		@fillHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
@@ -460,8 +485,7 @@ class TL.InteractiveCreationMode
 			else
 				@to = null
 
-			@placeDashes()
-			@placeHelpers()
+			@render()
 			@placeHint mouseInfo
 			@fillHint mouseInfo
 		@timeline.field.$dom.on 'mousemove', @moveHandler
@@ -469,8 +493,7 @@ class TL.InteractiveCreationMode
 		@leaveHandler = (e)=>
 			@to = null
 
-			@placeDashes()
-			@placeHelpers()
+			@render()
 			@placeHint {}
 			@fillHint {}
 		@timeline.field.$dom.on 'mouseleave', @leaveHandler
@@ -489,8 +512,7 @@ class TL.InteractiveCreationMode
 		@timeline.field.$dom.on 'click', @clickHandler	
 
 	deactivateStateSetEnding: ->
-		@placeDashes()
-		@placeHelpers()
+		@render()
 		@placeHint {}
 		@fillHint {}
 		@timeline.field.$dom.off 'mousemove', @moveHandler
@@ -625,15 +647,75 @@ class TL.Misc
 		sum += value for value in array
 		sum
 
-class TL.Element extends TL.Sized
-	constructor: (@timeline, @raw = {})->
-		@className = @getClassName()
-		@init()
+	@ucFirst: (string)->
+		string.charAt(0).toUpperCase() + string.slice 1
 
-	getClassName: ->
-		''
+
+TL.registry = new class Registry
+	constructor: ->
+		@map = {}
+		@lastOid = -1
+
+	generateOid: ->
+		++@lastOid
+
+	get: (oid)->
+		@map[oid]
+
+	register: (object)->
+		unless object.oid?
+			object.oid = @generateOid()
+			@map[object.oid] = object
+		object.oid
+
+	unregister: (oid)->
+		delete @map[oid] if @map[oid]?
+
+class TL.Registrable
+	getOid: ->
+		@oid
 
 	init: ->
+		TL.registry.register @
+
+	deinit: ->
+		TL.registry.unregister @oid
+
+class TL.MultiViewed
+	init: ->
+		@views = {}
+		@createViews()
+
+	deinit: ->
+		for name, view of @views
+			view.$dom.remove()
+			delete view.$dom
+		delete @views
+
+	createViews: ->
+		@createView()
+
+	createView: (type = 'default', parent, namePostfix)->
+		name = type + (if namePostfix then ':' + namePostfix else '')
+		@views[name] = {type, parent, $dom: @createViewDom parent, type}
+
+	createViewDom: ->
+		$('<div />')
+
+	getView: (name = 'default')->
+		@views[name]
+
+	render: ->
+		for name, view of @$views
+			@['render' + TL.Misc.ucFirst(view.type)].call @, view
+
+class TL.Element extends TL.mixOf TL.Sized, TL.Registrable, TL.MultiViewed, TL.ResourceHolder
+	constructor: (@timeline, @raw = {})->
+		@className = @getClassName()
+		@initMixins()
+
+	getClassName: ->
+		@constructor.name.toLowerCase()
 
 	cfg: ->
 		@timeline.config[@className] ? {}
@@ -662,24 +744,28 @@ class TL.Element.Container extends TL.Sized
 	getChildrenElements: ->
 		[@timeline]
 
+	getView: ->
+		{type: 'default', @$dom}
+
 class TL.Element.Root extends TL.Element
 	getClassName: ->
 		'root'
 
-	build: ->
-		@$dom = TL.Misc.addDom 'root', @timeline.container.$dom
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @timeline.container.getView()
 
-		@timeline.sidebar.build()
-		@timeline.ruler.build()
-		@timeline.corner.build()
-		@timeline.field.build()
+	createViewDom: (parent)->
+		console.log parent
+		TL.Misc.addDom 'root', parent.$dom
 
-	fill: ->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@$dom.css
+	fillDefault: (view)->
+
+	placeDefault: (view)->
+		view.$dom.css
 			height: @getInnerHeight()
 
 	getParentElement: ->
@@ -710,41 +796,41 @@ class TL.Element.Sidebar extends TL.Element
 		else
 			0
 
-	build: ->
-		@$dom = TL.Misc.addDom 'sidebar', @timeline.root.$dom
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @timeline.root.getView()
 
-		@buildGroups()
+	createViewDom: (parent)->
+		TL.Misc.addDom 'sidebar', parent.$dom
 
-	fill: ->
-		@lookupProperty('fill').call @
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	@fill: ->
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	place: ->
-		@lookupProperty('place').call @
+	@fillDefault: (view)->
 
-	@place: ->
-		@$dom.css if @timeline.config.ruler.position is 'top'
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css if @timeline.config.ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
 			bottom: @timeline.ruler.getOuterHeight()
 
-		@$dom.css if @cfg().position is 'left'
+		view.$dom.css if @cfg().position is 'left'
 			left: 0
 			right: 'auto'
 		else 
 			left: 'auto'
 			right: 0
 
-		@$dom.css 
+		view.$dom.css 
 			width: @getInnerWidth()
-
-	buildGroups: ->
-		group.buildAtSidebar() for group in @timeline.groups
 
 class TL.Element.Ruler extends TL.Element
 	getClassName: ->
@@ -765,84 +851,86 @@ class TL.Element.Ruler extends TL.Element
 	getParentElement: ->
 		@timeline.root
 
-	build: ->
-		@$dom = TL.Misc.addDom 'ruler', @timeline.root.$dom
-		TL.Misc.scrollize @$dom, 'x', [{axis: 'x', getTarget: => group.$dom for group in @timeline.groups}]
-		@fill()
-		@place()
-		
-		@buildRanges()
-		@buildDashes()
+	createViews: ->
+		@createView 'default', @timeline.root.getView()
 
-	fill: ->
-		@lookupProperty('fill').call @
+	createViewDom: (parent)->
+		$dom = TL.Misc.addDom 'ruler', parent.$dom
+		TL.Misc.scrollize $dom, 'x', [{axis: 'x', getTarget: => group.getView().$dom for group in @timeline.groups}]
+		$dom
 
-	@fill: ->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@lookupProperty('place').call @
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ->
-		@$dom.css if @timeline.config.sidebar.position is 'left'
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css if @timeline.config.sidebar.position is 'left'
 			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
 			left: 0
 			right: @timeline.sidebar.getOuterWidth()
 
-		@$dom.css if @cfg().position is 'top'
+		view.$dom.css if @cfg().position is 'top'
 			top: 0
 			bottom: 'auto'
 		else 
 			top: 'auto'
 			bottom: 0
 
-		@$dom.css 
+		view.$dom.css 
 			height: @timeline.ruler.getInnerHeight()
 
-		TL.Misc.setInnerSize @$dom, 
+		TL.Misc.setInnerSize view.$dom, 
 			x: TL.Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
 			y: @timeline.ruler.getInnerHeight()
-
-	buildRanges: ->
-		range.buildAtRuler() for range in @timeline.ranges
-
-	buildDashes: ->
-		dash.buildAtRuler() for dash in @timeline.calcDashes()
 
 class TL.Element.Corner extends TL.Element
 	getClassName: ->
 		'corner'
 
-	build: ->
-		@$dom = TL.Misc.addDom 'corner', @timeline.root.$dom
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @timeline.root.getView()
 
-	fill: ->
-		@lookupProperty('fill').call @
+	createViewDom: (parent)->
+		TL.Misc.addDom 'corner', parent.$dom
 
-	@fill: ->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@lookupProperty('place').call @
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ->
-		@$dom.css if @timeline.config.ruler.position is 'top'
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css if @timeline.config.ruler.position is 'top'
 			top: 0
 			bottom: ''
 		else
 			top: ''
 			bottom: 0
 
-		@$dom.css if @timeline.config.sidebar.position is 'left'
+		view.$dom.css if @timeline.config.sidebar.position is 'left'
 			left: 0
 			right: ''
 		else 
 			left: ''
 			right: 0
 			
-		@$dom.css
+		view.$dom.css
 			width: @timeline.sidebar.getOuterWidth()
 			height: @timeline.ruler.getOuterHeight()
 
@@ -850,38 +938,38 @@ class TL.Element.Field extends TL.Element
 	getClassName: ->
 		'field'
 
-	build: ->
-		@$dom = TL.Misc.addDom 'field', @timeline.root.$dom
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @timeline.root.getView()
 
-		@buildGroups()
+	createViewDom: (parent)->
+		TL.Misc.addDom 'field', parent.$dom
 
-	fill: ->
-		@lookupProperty('fill').call @
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	@fill: ->
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	place: ->
-		@lookupProperty('place').call @
+	@fillDefault: (view)->
 
-	@place: ->
-		@$dom.css if @timeline.config.ruler.position is 'top'
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css if @timeline.config.ruler.position is 'top'
 			top: @timeline.ruler.getOuterHeight()
 			bottom: 0
 		else 
 			top: 0
 			bottom: @timeline.ruler.getOuterHeight()
 
-		@$dom.css if @timeline.config.sidebar.position is 'left'
+		view.$dom.css if @timeline.config.sidebar.position is 'left'
 			left: @timeline.sidebar.getOuterWidth()
 			right: 0
 		else 
 			left: 0
 			right: @timeline.sidebar.getOuterWidth()
-
-	buildGroups: ->
-		group.build() for group in @timeline.groups
 
 class TL.Element.Group extends TL.Element
 	getClassName: ->
@@ -903,88 +991,73 @@ class TL.Element.Group extends TL.Element
 	getChildrenElements: ->
 		@getLines()
 
-	build: ->
-		@$dom = TL.Misc.addDom 'group', @timeline.field.$dom
-		@$dom.data 'timeline-host-object', @
-		TL.Misc.scrollize @$dom, 'xy', [
-			{axis: 'x', getTarget: => 
-				targets = (elseGroup.$dom for elseGroup in @timeline.groups when elseGroup isnt @)
-				targets.push @timeline.ruler.$dom if @timeline.ruler.$dom?
-				targets
-			},
-			{axis: 'y', getTarget: => @$sidebarDom ? null}
-		]
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @timeline.field.getView()
+		@createView 'atSidebar', @timeline.sidebar.getView()
 
-		@buildLines()
-		@buildRanges()
-		@buildDashes()
-		@buildItems()
+	createViewDom: (parent, type)->
+		$dom = TL.Misc.addDom 'group', parent.$dom
+		$dom.data 'timeline-host-object', @
+		switch type
+			when 'field'
+				TL.Misc.scrollize $dom, 'xy', [
+					{axis: 'x', getTarget: => 
+						targets = (elseGroup.getView('field').$dom for elseGroup in @timeline.groups when elseGroup isnt @)
+						targets.push $rulerDom if ($rulerDom = @timeline.ruler.getView('root').$dom)?
+						targets
+					},
+					{axis: 'y', getTarget: => @getView('sidebar')?.$dom ? null}
+				]
+			when 'sidebar'
+				TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView('field').$dom}]
 
-	fill: ->
-		@lookupProperty('fill').call @
+		$dom
 
-	@fill: ->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@lookupProperty('place').call @
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ->
-		@$dom.css
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css
 			top : @getVerticalOffset()
 			height: @getInnerHeight()
 
-		TL.Misc.setInnerSize @$dom, 
+		TL.Misc.setInnerSize view.$dom, 
 			x: TL.Misc.sum(range.getOuterWidth() for range in @timeline.ranges)
 			y: TL.Misc.sum(line.getOuterHeight() for line in @getLines())
 
-	buildLines: ->
-		line.build() for line in @getLines()
+	renderAtSidebar: (view)->
+		@fillAtSidebar view
+		@placeAtSidebar view
 
-	buildRanges: ->
-		range.build @ for range in @timeline.ranges
+	fillAtSidebar: (view)->
+		@lookupProperty('fillAtSidebar').call @, view
 
-	buildDashes: ->
-		dash.build @ for dash in @timeline.calcDashes()
+	@fillAtSidebar: (view)->
 
-	buildItems: ->
-		item.build() for item in @timeline.items when item.getLine().raw.groupId is @raw.id
+	placeAtSidebar: (view)->
+		@lookupProperty('placeAtSidebar').call @, view
 
-	buildAtSidebar: ->
-		@$sidebarDom = TL.Misc.addDom 'group', @timeline.sidebar.$dom
-		TL.Misc.scrollize @$sidebarDom, 'y', [{axis: 'y', getTarget: => @$dom}]
-		@fillAtSidebar()
-		@placeAtSidebar()
-
-		@buildLinesAtSidebar()
-
-	fillAtSidebar: ->
-		@lookupProperty('fillAtSidebar').call @
-
-	@fillAtSidebar: ->
-
-	placeAtSidebar: ->
-		@lookupProperty('placeAtSidebar').call @
-
-	@placeAtSidebar: ->
-		@$sidebarDom.css
+	@placeAtSidebar: (view)->
+		view.$dom.css
 			top : @getVerticalOffset()
 			height: @getInnerHeight()
 
-		TL.Misc.setInnerSize @$sidebarDom,
+		TL.Misc.setInnerSize view.$dom,
 			x: @timeline.sidebar.getInnerWidth()
 			y: TL.Misc.sum(line.getOuterHeight() for line in @getLines())
-
-	buildLinesAtSidebar: ->
-		line.buildAtSidebar() for line in @getLines()
 
 class TL.Element.Range extends TL.Element
 	getClassName: ->
 		'range'
-
-	init: ->
-		@$doms = []
 
 	getOffset: ->
 		TL.Misc.sum(
@@ -1010,44 +1083,48 @@ class TL.Element.Range extends TL.Element
 	getTimeByInternalOffset: (internalOffset)->
 		@raw.from + internalOffset * @timeline.config.scale
 
-	build: (group)->
-		$dom = TL.Misc.addDom 'range', group.$dom
-		@$doms.push $dom
-		@fill $dom
-		@place $dom
+	createViews: ->
+		@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
+		@createView 'atRuler', @timeline.ruler.getView()
 
-	fill: ($dom)->
-		@lookupProperty('fill').call @, $dom
+	createViewDom: (parent)->
+		TL.Misc.addDom 'range', parent.$dom
 
-	@fill: ($dom)->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ($dom)->
-		@lookupProperty('place').call @, $dom
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ($dom)->
-		$dom.css
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css
 			left: @getOffset()
 			width: @getInnerWidth()
 
-	buildAtRuler: ->
-		@$rulerDom = TL.Misc.addDom 'range', @timeline.ruler.$dom
-		@fillAtRuler()
-		@placeAtRuler()
+	renderAtRuler: (view)->
+		@fillAtRuler view
+		@placeAtRuler view
 
-	fillAtRuler: ->
-		@lookupProperty('fillAtRuler').call @
+	fillAtRuler: (view)->
+		@lookupProperty('fillAtRuler').call @, view
 
-	@fillAtRuler: ->
+	@fillAtRuler: (view) ->
 		from = moment.unix(@raw.from).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		to = moment.unix(@raw.to).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
-		@$rulerDom.children('.tl-heading').remove()
-		@$rulerDom.append TL.Misc.addDom('heading').text "#{from} — #{to}"
+		view.$dom.children('.tl-heading').remove()
+		view.$dom.append TL.Misc.addDom('heading').text "#{from} — #{to}"
 
-	placeAtRuler: ->
-		@lookupProperty('placeAtRuler').call @
+	placeAtRuler: (view)->
+		@lookupProperty('placeAtRuler').call @, view
 
-	@placeAtRuler: ->
-		@$rulerDom.css
+	@placeAtRuler: (view)->
+		view.$dom.css
 			left: @getOffset()
 			width: @getInnerWidth()
 
@@ -1055,49 +1132,48 @@ class TL.Element.Dash extends TL.Element
 	getClassName: ->
 		'dash'
 
-	init: ->
-		@$doms = []
+	createViews: ->
+		@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
+		@createView 'atRuler', @timeline.ruler.getView()
 
-	build: (group)->
-		$dom = TL.Misc.addDom 'dash', group.$dom
-		$dom.addClass "id-#{@raw.rule.id}"
-		@$doms.push $dom
-		@fill $dom
-		@place $dom
+	createViewDom: (parent)->
+		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@raw.rule.id}"
 
-	fill: ($dom)->
-		@lookupProperty('fill').call @, $dom
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	@fill: ($dom)->
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	place: ($dom)->
-		@lookupProperty('place').call @, $dom
+	@fillDefault: (view)->
 
-	@place: ($dom)->
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
 		offset = @timeline.getOffset @raw.time
 		if offset?
-			$dom.css left: offset
+			view.$dom.css left: offset
 
-	buildAtRuler: (dash)->
-		@$rulerDom = TL.Misc.addDom 'dash', @timeline.ruler.$dom
-		@$rulerDom.addClass "id-#{@raw.rule.id}"
-		@fillAtRuler()
-		@placeAtRuler()
+	renderAtRuler: (view)->
+		@fillInRuler view
+		@placeInRuler view
 
-	fillAtRuler: ->
-		@lookupProperty('fillAtRuler').call @
+	fillAtRuler: (view)->
+		@lookupProperty('fillAtRuler').call @, view
 
-	@fillAtRuler: ->
-		@$rulerDom.children('.tl-text').remove()
-		@$rulerDom.append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
+	@fillAtRuler: (view)->
+		view.$dom.children('.tl-text').remove()
+		view.$dom.append TL.Misc.addDom('text').text moment.unix(@raw.time).tz(@timeline.config.timezone).format('HH:mm')
 
-	placeAtRuler: ->
-		@lookupProperty('placeAtRuler').call @
+	placeAtRuler: (view)->
+		@lookupProperty('placeAtRuler').call @, view
 
-	@placeAtRuler: ->
+	@placeAtRuler: (view)->
 		offset = @timeline.getOffset @raw.time
 		if offset?
-			@$rulerDom.css left: offset
+			view.$dom.css left: offset
 
 class TL.Element.Line extends TL.Element
 	getClassName: ->
@@ -1130,41 +1206,46 @@ class TL.Element.Line extends TL.Element
 	getGroup: ->
 		@timeline.getGroupById @raw.groupId
 
-	build: ->
-		@$dom = TL.Misc.addDom 'line', @getGroup().$dom
-		@fill()
-		@place()
+	createViews: ->
+		@createView 'default', @getGroup().getView()
+		@createView 'atSidebar', @getGroup().getView()
 
-	fill: ->
-		@lookupProperty('fill').call @
+	createViewDom: (parent)->
+		TL.Misc.addDom('line', parent.$dom).addClass "id-#{@raw.id}"
 
-	@fill: ->
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@lookupProperty('place').call @
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ->
-		@$dom.css
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		view.$dom.css
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
 
-	buildAtSidebar: ->
-		@$sidebarDom = TL.Misc.addDom 'line', @getGroup().$sidebarDom
-		@fillAtSidebar()
-		@placeAtSidebar()
+	renderAtSidebar: (view)->
+		@fillAtSidebar view
+		@placeAtSidebar view
 
-	fillAtSidebar: ->
-		@lookupProperty('fillAtSidebar').call @
+	fillAtSidebar: (view)->
+		@lookupProperty('fillAtSidebar').call @, view
 
-	@fillAtSidebar: ->
-		@$sidebarDom.children('.tl-heading').remove()
-		@$sidebarDom.append TL.Misc.addDom('heading').text @raw.id
+	@fillAtSidebar: (view)->
+		view.$dom.children('.tl-heading').remove()
+		view.$dom.append TL.Misc.addDom('heading').text @raw.id
 
-	placeAtSidebar: ->
-		@lookupProperty('placeAtSidebar').call @
+	placeAtSidebar: (view)->
+		@lookupProperty('placeAtSidebar').call @, view
 
-	@placeAtSidebar: ->
-		@$sidebarDom.css
+	@placeAtSidebar: (view)->
+		view.$dom.css
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
 
@@ -1184,28 +1265,33 @@ class TL.Element.Item extends TL.Element
 	canCrossRanges: ->
 		@lookupProperty 'canCrossRanges', yes
 
-	build: ->
-		@$dom = TL.Misc.addDom 'item', @getLine().getGroup().$dom
-		@fill()
-		@place()
-		@makeDraggable()
-		@makeResizeableLeft()
-		@makeResizeableRight()
+	createViews: ->
+		@createView 'default', @getLine().getGroup().getView()
 
-	fill: ->
-		@lookupProperty('fill').call @
+	createViewDom: (parent)->
+		TL.Misc.addDom 'item', parent.$dom
+	# 	@makeDraggable()
+	# 	@makeResizeableLeft()
+	# 	@makeResizeableRight()
 
-	@fill: ->
-		@$dom.children('.tl-text').remove()
-		@$dom.append TL.Misc.addDom('text').text @raw.text
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
 
-	place: ->
-		@lookupProperty('place').call @
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
 
-	@place: ->
+	@fillDefault: (view)->
+		view.$dom.children('.tl-text').remove()
+		view.$dom.append TL.Misc.addDom('text').text @raw.text
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
 		line = @getLine()
 		offset = @timeline.getOffset @raw.from
-		@$dom.css
+		view.$dom.css
 			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
 			height: line.getInnerHeight()
 			left: offset
@@ -1408,15 +1494,9 @@ class TL.Element.Item extends TL.Element
 		@timeline.items = @timeline.items.filter (item)=> @ isnt item
 
 	destroy: ->
-		if @$dom?
-			@$dom?.remove()
-			@$dom = null
-		if @$dragHint?
-			@$dragHint?.remove()
-			@$dragHint = null
-		if @$resizeHint?
-			@$resizeHint?.remove()
-			@$resizeHint = null
-
+		for name, view of @views
+			view.$dom.remove()
+			view.$dom = null
+			@views[name] = null
 
 window.TL = TL
