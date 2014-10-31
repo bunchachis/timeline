@@ -409,9 +409,8 @@ class TL.InteractiveCreationMode
 		@placeDashes()
 		@placeHelpers()
 
-	activate: (@itemTemplate = {}, groupId)->
+	activate: (@itemTemplate = {}, @restrictGroupsIds)->
 		@isActive = yes
-		@group = @timeline.getGroupById groupId
 		@activateState 'SetBeginning'
 
 	deactivate: ->
@@ -420,7 +419,7 @@ class TL.InteractiveCreationMode
 		@from = null
 		@to = null
 		@line = null
-		@group = null
+		@restrictGroupsIds = null
 		@deactivateState @stateName
 
 	activateState: (stateName)->
@@ -437,26 +436,26 @@ class TL.InteractiveCreationMode
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
-			if group?
+			if group? and (!@restrictGroupsIds? or group.raw.id in @restrictGroupsIds)
 				groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
 				mouseInfo.group = group
 				mouseInfo.parentOffset = groupOffset
 				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
 				@from = @timeline.approxTime @timeline.getTime(e.pageX - groupOffset.left)
 			else
+				@line = null
 				@from = null
 
 			@render()
-			@placeHint mouseInfo
-			@fillHint mouseInfo
+			@renderHint mouseInfo
 		@timeline.field.getView().$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
+			@line = null
 			@from = null
 
 			@render()
-			@placeHint {}
-			@fillHint {}
+			@renderHint {}
 		@timeline.field.getView().$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
@@ -466,8 +465,7 @@ class TL.InteractiveCreationMode
 
 	deactivateStateSetBeginning: ->
 		@render()
-		@placeHint {}
-		@fillHint {}
+		@renderHint {}
 		@timeline.field.getView().$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
 		@timeline.field.getView().$dom.off 'mouseleave', @leaveHandler
@@ -490,16 +488,14 @@ class TL.InteractiveCreationMode
 				@to = null
 
 			@render()
-			@placeHint mouseInfo
-			@fillHint mouseInfo
+			@renderHint mouseInfo
 		@timeline.field.getView().$dom.on 'mousemove', @moveHandler
 
 		@leaveHandler = (e)=>
 			@to = null
 
 			@render()
-			@placeHint {}
-			@fillHint {}
+			@renderHint {}
 		@timeline.field.getView().$dom.on 'mouseleave', @leaveHandler
 
 		@clickHandler = (e)=>
@@ -516,8 +512,7 @@ class TL.InteractiveCreationMode
 
 	deactivateStateSetEnding: ->
 		@render()
-		@placeHint {}
-		@fillHint {}
+		@renderHint {}
 		@timeline.field.getView().$dom.off 'mousemove', @moveHandler
 		@moveHandler = null
 		@timeline.field.getView().$dom.off 'mouseleave', @leaveHandler
@@ -566,6 +561,10 @@ class TL.InteractiveCreationMode
 		else
 			$helper.css
 				display: 'none'
+
+	renderHint: (mouseInfo)->
+		@fillHint mouseInfo
+		@placeHint mouseInfo
 
 	fillHint: (mouseInfo)->
 		(@timeline.config.icm?.fillHint ? @constructor.fillHint).call @, mouseInfo
