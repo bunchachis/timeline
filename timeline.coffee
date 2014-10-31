@@ -1,4 +1,4 @@
-TL = {}
+window.TL = TL = {}
 
 TL.mixOf = (mixins...) ->
 	class Mixed
@@ -181,7 +181,9 @@ class TL.Timeline extends TL.EventEmitter
 
 		@icm = new TL.InteractiveCreationMode @
 
-	render: ->
+		@renderAll()
+
+	renderAll: ->
 		@root.render()
 		@sidebar.render()
 		@ruler.render()
@@ -191,6 +193,7 @@ class TL.Timeline extends TL.EventEmitter
 		range.render() for range in @ranges
 		line.render() for line in @lines
 		dash.render() for dash in @dashes
+		@icm.render()
 
 	createElement: (type, data = {})->
 		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
@@ -252,7 +255,12 @@ class TL.Timeline extends TL.EventEmitter
 		@items.push item 
 
 	addItem: (item)->
-		@rawAddItem item
+		if @fireEvent 'item:create', {item}
+			@rawAddItem item
+			item.render()
+			yes
+		else
+			no
 
 	getDefaultConfig: ->
 		field:
@@ -501,8 +509,7 @@ class TL.InteractiveCreationMode
 					lineId: @line.raw.id
 
 				if item.isValid()
-					if @timeline.fireEvent 'item:create', {item}
-						@timeline.addItem item
+					if @timeline.addItem item
 						@deactivate()
 		@timeline.field.getView().$dom.on 'click', @clickHandler	
 
@@ -567,7 +574,7 @@ class TL.InteractiveCreationMode
 			offset = mouseInfo.event.pageX - mouseInfo.parentOffset.left
 			time = @timeline.approxTime @timeline.getTime(offset), @stateName is 'SetEnding'
 			if time?
-				@$hint.text moment.unix(time).tz(@timeline.config.timezone).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
+				@$hint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 		else 
 			@$hint.empty()
 
@@ -644,7 +651,6 @@ class TL.Misc
 
 	@ucFirst: (string)->
 		string.charAt(0).toUpperCase() + string.slice 1
-
 
 TL.registry = new class Registry
 	constructor: ->
@@ -1539,5 +1545,3 @@ class TL.Element.DashRule
 		step = @raw.step ? Infinity
 		offset = @raw.offset ? 0
 		(time - offset) % step == 0
-
-window.TL = TL
