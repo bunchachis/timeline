@@ -181,19 +181,20 @@ class TL.Timeline extends TL.EventEmitter
 
 		@icm = new TL.InteractiveCreationMode @
 
-		@renderAll()
+		@render()
 
-	renderAll: ->
-		@root.render()
-		@sidebar.render()
-		@ruler.render()
-		@corner.render()
-		@field.render()
-		group.render() for group in @groups
-		range.render() for range in @ranges
-		line.render() for line in @lines
-		dash.render() for dash in @dashes
-		@icm.render()
+	render: ->
+		if @fireEvent 'render'
+			@root.render()
+			@sidebar.render()
+			@ruler.render()
+			@corner.render()
+			@field.render()
+			group.render() for group in @groups
+			range.render() for range in @ranges
+			line.render() for line in @lines
+			dash.render() for dash in @dashes
+			@icm.render()
 
 	createElement: (type, data = {})->
 		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
@@ -1271,11 +1272,14 @@ class TL.Element.Item extends TL.Element
 	createViews: ->
 		@createView 'default', @getLine().getGroup().getView()
 
-	createViewDom: (parent)->
-		TL.Misc.addDom 'item', parent.$dom
-	# 	@makeDraggable()
-	# 	@makeResizeableLeft()
-	# 	@makeResizeableRight()
+	createViewDom: (parent, type)->
+		switch type
+			when 'default'
+				$dom = TL.Misc.addDom 'item', parent.$dom
+				@makeDraggable $dom
+				@makeResizeableLeft $dom
+				@makeResizeableRight $dom
+				$dom
 
 	renderDefault: (view)->
 		@fillDefault view
@@ -1303,35 +1307,35 @@ class TL.Element.Item extends TL.Element
 	getClone: ->
 		clone = $.extend {}, @
 		clone.raw = $.extend {}, @raw
+		clone
 
-	makeDraggable: ->
-		@$dragHint = null
+	makeDraggable: ($dom)->
 		modified = null
+		$dragHint = null
 
-		@$dom.draggable
+		$dom.draggable
 			helper: =>
 				TL.Misc.addDom('drag-helper').css
-					width: @$dom.css 'width'
-					height: @$dom.css 'height'
+					width: $dom.css 'width'
+					height: $dom.css 'height'
 			start: (e, ui)=>
-				@$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().$dom
+				$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().getView().$dom
 				modified = @getClone()
 				@timeline.fireEvent 'item:drag:start', item: @
 			stop: (e, ui)=>
-				@$dragHint.remove()
+				$dragHint.remove()
+				$dragHint = null
 				modified = null
 				@timeline.fireEvent 'item:drag:stop', item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				dragInfo = 
-					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.getView().$dom).offset()
 					event: e
 					ui: ui
 				
-				@fillDragHint dragInfo
-				@placeDragHint dragInfo
+				@renderDragHint $dragHint, dragInfo
 				
-
 				duration = @getDuration()
 				modified.raw.from = @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 				modified.raw.to = modified.raw.from + duration
@@ -1342,27 +1346,31 @@ class TL.Element.Item extends TL.Element
 					if @timeline.fireEvent('item:drag', item: modified, originalItem: @) and
 					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
 						$.extend @raw, modified.raw
-						@place()
+						@render()
 
-	fillDragHint: (dragInfo)->
-		@lookupProperty('fillDragHint').call @, dragInfo
+	renderDragHint: ($dom, dragInfo)->
+		@fillDragHint $dom, dragInfo
+		@placeDragHint $dom, dragInfo
 
-	@fillDragHint: (dragInfo)->
+	fillDragHint: ($dom, dragInfo)->
+		@lookupProperty('fillDragHint').call @, $dom, dragInfo
+
+	@fillDragHint: ($dom, dragInfo)->
 		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
 		if time?
-			@$dragHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
+			$dom.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
-	placeDragHint: (dragInfo)->
-		@lookupProperty('placeDragHint').call @, dragInfo
+	placeDragHint: ($dom, dragInfo)->
+		@lookupProperty('placeDragHint').call @, $dom, dragInfo
 
-	@placeDragHint: (dragInfo)-> 
-		@$dragHint.css
+	@placeDragHint: ($dom, dragInfo)-> 
+		$dom.css
 			left: dragInfo.event.pageX - dragInfo.parentOffset.left
 			top: dragInfo.event.pageY - dragInfo.parentOffset.top
 
-	makeResizeableLeft: ->
-		$resizerLeft = TL.Misc.addDom 'resizer-left', @$dom
-		@$resizeHint = null
+	makeResizeableLeft: ($dom)->
+		$resizerLeft = TL.Misc.addDom 'resizer-left', $dom
+		$resizeHint = null
 		modified = null
 		originalDomOffset = null
 		originalDomWidth = null
@@ -1374,13 +1382,14 @@ class TL.Element.Item extends TL.Element
 					width: $resizerLeft.css 'width'
 					height: $resizerLeft.css 'height'
 			start: (e, ui)=>
-				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().getView().$dom
 				modified = @getClone()
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
 				@timeline.fireEvent 'item:resize:start', item: @
 			stop: (e, ui)=>
-				@$resizeHint.remove()
+				$resizeHint.remove()
+				$resizeHint.null
 				modified = null
 				originalDomOffset = null
 				originalDomWidth = null
@@ -1389,7 +1398,7 @@ class TL.Element.Item extends TL.Element
 				group = @getLine().getGroup()
 				
 				resizeInfo = 
-					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.getView().$dom).offset()
 					event: e
 					ui: ui
 					left: originalDomOffset + (ui.position.left - ui.originalPosition.left)
@@ -1398,8 +1407,7 @@ class TL.Element.Item extends TL.Element
 
 				$(ui.helper).css marginLeft: -(ui.position.left - ui.originalPosition.left)
 				 
-				@fillResizeHint resizeInfo
-				@placeResizeHint resizeInfo
+				@renderResizeHint $resizeHint, resizeInfo
 				
 				modified.raw.from = @timeline.approxTime @timeline.getTime resizeInfo.left
 				
@@ -1407,11 +1415,11 @@ class TL.Element.Item extends TL.Element
 					if @timeline.fireEvent('item:resize', item: modified, originalItem: @) and
 					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
 						$.extend @raw, modified.raw
-						@place()
+						@render()
 
-	makeResizeableRight: ->
-		$resizerRight = TL.Misc.addDom 'resizer-right', @$dom
-		@$resizeHint = null
+	makeResizeableRight: ($dom)->
+		$resizerRight = TL.Misc.addDom 'resizer-right', $dom
+		$resizeHint = null
 		modified = null
 		originalDomOffset = null
 		originalDomWidth = null
@@ -1423,13 +1431,14 @@ class TL.Element.Item extends TL.Element
 					width: $resizerRight.css 'width'
 					height: $resizerRight.css 'height'
 			start: (e, ui)=>
-				@$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().$dom
+				$resizeHint = TL.Misc.addDom 'resize-hint', @getLine().getGroup().getView().$dom
 				modified = @getClone()
 				originalDomOffset = @timeline.getOffset @raw.from
 				originalDomWidth = @timeline.getOffset(@raw.to - 1) - originalDomOffset
 				@timeline.fireEvent 'item:resize:start', item: @
 			stop: (e, ui)=>
-				@$resizeHint.remove()
+				$resizeHint.remove()
+				$resizeHint = null
 				modified = null
 				originalDomOffset = null
 				originalDomWidth = null
@@ -1438,15 +1447,14 @@ class TL.Element.Item extends TL.Element
 				group = @getLine().getGroup()
 				
 				resizeInfo = 
-					parentOffset: TL.Misc.getScrollContainer(group.$dom).offset()
+					parentOffset: TL.Misc.getScrollContainer(group.getView().$dom).offset()
 					event: e
 					ui: ui
 					left: originalDomOffset
 					width: originalDomWidth + (ui.position.left - ui.originalPosition.left)
 					side: 'right'
 				 
-				@fillResizeHint resizeInfo
-				@placeResizeHint resizeInfo
+				@renderResizeHint $resizeHint, resizeInfo
 				
 				modified.raw.to = @timeline.approxTime @timeline.getTime(resizeInfo.left + resizeInfo.width), yes
 				
@@ -1454,13 +1462,16 @@ class TL.Element.Item extends TL.Element
 					if @timeline.fireEvent('item:resize', item: modified, originalItem: @) and
 					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
 						$.extend @raw, modified.raw
-						@place()
+						@render()
 
+	renderResizeHint: ($dom, resizeInfo)->
+		@fillResizeHint $dom, resizeInfo
+		@placeResizeHint $dom, resizeInfo
 
-	fillResizeHint: (resizeInfo)->
-		@lookupProperty('fillResizeHint').call @, resizeInfo
+	fillResizeHint: ($dom, resizeInfo)->
+		@lookupProperty('fillResizeHint').call @, $dom, resizeInfo
 
-	@fillResizeHint: (resizeInfo)->
+	@fillResizeHint: ($dom, resizeInfo)->
 		offset = if resizeInfo.side is 'left'
 			resizeInfo.left
 		else 
@@ -1468,13 +1479,13 @@ class TL.Element.Item extends TL.Element
 
 		time = @timeline.approxTime @timeline.getTime(offset), resizeInfo.side is 'right'
 		if time?
-			@$resizeHint.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
+			$dom.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
-	placeResizeHint: (resizeInfo)->
-		@lookupProperty('placeResizeHint').call @, resizeInfo
+	placeResizeHint: ($dom, resizeInfo)->
+		@lookupProperty('placeResizeHint').call @, $dom, resizeInfo
 
-	@placeResizeHint: (resizeInfo)-> 
-		@$resizeHint.css
+	@placeResizeHint: ($dom, resizeInfo)-> 
+		$dom.css
 			left: resizeInfo.event.pageX - resizeInfo.parentOffset.left
 			top: resizeInfo.event.pageY - resizeInfo.parentOffset.top
 
