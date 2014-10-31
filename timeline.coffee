@@ -236,9 +236,7 @@ class TL.Timeline extends TL.EventEmitter
 			if elseRule.raw.id is rule.id
 				throw 'Can\'t add dash rule with same id as existing one has'
 
-		dashRule = @createElement 'DashRule', rule
-		@dashRules.push dashRule
-		dashRule.init()
+		@dashRules.push @createElement 'DashRule', rule
 
 	sortDashRules: ->
 		@dashRules = @dashRules.sort (a, b)->
@@ -1136,7 +1134,7 @@ class TL.Element.Dash extends TL.Element
 		@createView 'atRuler', @timeline.ruler.getView()
 
 	createViewDom: (parent)->
-		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@getRule().raw.id}"
+		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@raw.ruleId}"
 
 	renderDefault: (view)->
 		@fillDefault view
@@ -1504,8 +1502,6 @@ class TL.Element.Item extends TL.Element
 
 class TL.Element.DashRule
 	constructor: (@timeline, @raw = {})->
-
-	init: ->
 		@insertDashes()
 
 	removeDashes: ->
@@ -1526,9 +1522,22 @@ class TL.Element.DashRule
 				time = Math.floor(range.raw.from / step) * step + offset
 
 			while time < range.raw.to
-				dashes.push @timeline.createElement 'Dash', {time, ruleId: @raw.id} if time >= range.raw.from
+				if time >= range.raw.from and !@isTimeExcluded time
+					dashes.push @timeline.createElement 'Dash', {time, ruleId: @raw.id}
 				time += step
 
 		dashes
+
+	isTimeExcluded: (time)->
+		if @raw.exclude?
+			for excluderId in @raw.exclude
+				if @timeline.getDashRuleById(excluderId).hasDashAtTime(time)
+					return yes
+		no
+
+	hasDashAtTime: (time)->
+		step = @raw.step ? Infinity
+		offset = @raw.offset ? 0
+		(time - offset) % step == 0
 
 window.TL = TL

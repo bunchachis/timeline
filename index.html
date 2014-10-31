@@ -51,9 +51,9 @@
 	    			snapResolution: 5 * 60,
 					dashRules: [
 						{id: '0800', step: 24*60*60, offset: 8*60*60},
-						{id: 'hour', step: 60*60},
-						{id: 'half-hour', step: 30*60},
-						{id: '10-mins', step: 10*60},
+						{id: 'hour', step: 60*60, exclude: ['0800']},
+						{id: 'half-hour', step: 30*60, exclude: ['hour']},
+						{id: '10-mins', step: 10*60, exclude: ['half-hour']},
 					],
 
 	    			ranges: [
