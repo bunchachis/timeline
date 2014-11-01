@@ -392,6 +392,9 @@ class TL.Timeline extends TL.EventEmitter
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
 		@isActive = no
+		@escHandler = (e)=>
+			@deactivate() if e.which is 27
+			alert 123 if e.which is 27
 		@build()
 
 	build: ->
@@ -405,16 +408,27 @@ class TL.InteractiveCreationMode
 
 		@$hint = TL.Misc.addDom 'icm-hint'
 
+		@$indicator = TL.Misc.addDom 'icm-indicator'
+		@$indicator.append $('<p />').text 'Создание элемента'
+		@$indicator.append $('<button />').text('отменить').click => @deactivate()
+
 	render: ->
 		@placeDashes()
 		@placeHelpers()
 
 	activate: (@itemTemplate = {}, @restrictGroupsIds)->
 		@isActive = yes
+		@$oldCornerContent = @timeline.corner.getView().$dom.children()
+		@timeline.corner.getView().$dom.empty().append @$indicator
+		$(window).on 'keydown', @escHandler
 		@activateState 'SetBeginning'
 
 	deactivate: ->
 		@isActive = no
+		@$indicator.detach()
+		@timeline.corner.getView().$dom.empty().append @$oldCornerContent
+		@$oldCornerContent = null
+		$(window).off 'keydown', @escHandler
 		@itemTemplate = null
 		@from = null
 		@to = null
