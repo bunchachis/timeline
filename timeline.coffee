@@ -1325,6 +1325,7 @@ class TL.Element.Item extends TL.Element
 	makeDraggable: ($dom)->
 		modified = null
 		$dragHint = null
+		holdPos = null
 
 		$dom.draggable
 			helper: =>
@@ -1334,26 +1335,30 @@ class TL.Element.Item extends TL.Element
 			start: (e, ui)=>
 				$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().getView().$dom
 				modified = @getClone()
+				domOffset = $dom.offset()
+				holdPos = 
+					left: e.pageX - domOffset.left
+					top: e.pageY - domOffset.top
 				@timeline.fireEvent 'item:drag:start', item: @
 			stop: (e, ui)=>
 				$dragHint.remove()
 				$dragHint = null
 				modified = null
+				holdPos = null
 				@timeline.fireEvent 'item:drag:stop', item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
-				dragInfo = 
-					parentOffset: TL.Misc.getScrollContainer(group.getView().$dom).offset()
-					event: e
-					ui: ui
-				
-				@renderDragHint $dragHint, dragInfo
-				
+				parentOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
+				drag = {event: e, parentOffset, holdPos}
+				drag.domPos = @calcDragDomPos drag
+
 				duration = @getDuration()
-				modified.raw.from = @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
+				modified.raw.from = @timeline.approxTime @timeline.getTime drag.domPos.left
 				modified.raw.to = modified.raw.from + duration
-				newLine = @timeline.getLineByVerticalOffset group, dragInfo.event.pageY - dragInfo.parentOffset.top
+				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
 				modified.raw.lineId = newLine.raw.id if newLine
+
+				@renderDragHint $dragHint, drag, modified
 
 				if modified.isValid()
 					if @timeline.fireEvent('item:drag', item: modified, originalItem: @) and
@@ -1361,25 +1366,29 @@ class TL.Element.Item extends TL.Element
 						$.extend @raw, modified.raw
 						@render()
 
-	renderDragHint: ($dom, dragInfo)->
-		@fillDragHint $dom, dragInfo
-		@placeDragHint $dom, dragInfo
+	calcDragDomPos: (drag)->
+		left: drag.event.pageX - drag.parentOffset.left - drag.holdPos.left
+		top: drag.event.pageY - drag.parentOffset.top - drag.holdPos.top
 
-	fillDragHint: ($dom, dragInfo)->
-		@lookupProperty('fillDragHint').call @, $dom, dragInfo
+	renderDragHint: ($dom, drag, modified)->
+		@fillDragHint $dom, drag, modified
+		@placeDragHint $dom, drag, modified
 
-	@fillDragHint: ($dom, dragInfo)->
-		time =  @timeline.approxTime @timeline.getTime dragInfo.ui.position.left
+	fillDragHint: ($dom, drag, modified)->
+		@lookupProperty('fillDragHint').call @, $dom, drag, modified
+
+	@fillDragHint: ($dom, drag, modified)->
+		time = if modified.isValid() then modified.raw.from else @raw.from
 		if time?
 			$dom.text moment.unix(time).tz(@timeline.config.timezone).format('DD.MM.YYYY HH:mm:ss')
 
-	placeDragHint: ($dom, dragInfo)->
-		@lookupProperty('placeDragHint').call @, $dom, dragInfo
+	placeDragHint: ($dom, drag, modified)->
+		@lookupProperty('placeDragHint').call @, $dom, drag, modified
 
-	@placeDragHint: ($dom, dragInfo)-> 
+	@placeDragHint: ($dom, drag, modified)-> 
 		$dom.css
-			left: dragInfo.event.pageX - dragInfo.parentOffset.left
-			top: dragInfo.event.pageY - dragInfo.parentOffset.top
+			left: drag.event.pageX - drag.parentOffset.left
+			top: drag.event.pageY - drag.parentOffset.top
 
 	makeResizeableLeft: ($dom)->
 		$resizerLeft = TL.Misc.addDom 'resizer-left', $dom
