@@ -46,6 +46,18 @@
 	    					view.$dom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				}
 	    			},
+	    			item: {
+	    				placeDefault: function(view){
+	    					TL.Element.Item.placeDefault.call(this, view);
+	    					if (this.timeline.getDashRuleById('half-hour').hasDashAtTime(this.raw.from)) {
+	    						offset = this.timeline.getOffset(this.raw.from) + 1; 
+	    						view.$dom.css({
+	    							left: offset,
+	    							width: this.timeline.getOffset(this.raw.to - 1) - offset
+	    						});
+	    					}
+	    				}
+	    			},
 	    			sidebar: {width: 170},
 	    			ruler: {height: 53},
 	    			timezone: 'UTC',
