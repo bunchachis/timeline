@@ -1357,6 +1357,16 @@ class TL.Element.Item extends TL.Element
 				modified.raw.to = modified.raw.from + duration
 				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
 				modified.raw.lineId = newLine.raw.id if newLine
+				
+				unless modified.isValid()
+					originalLeft = @timeline.getOffset @raw.from
+					direction = Math.sign drag.domPos.left - originalLeft
+					attemptLeft = drag.domPos.left
+					while attemptLeft isnt originalLeft
+						attemptLeft -= direction
+						modified.raw.from = @timeline.approxTime @timeline.getTime attemptLeft
+						modified.raw.to = modified.raw.from + duration
+						break if modified.isValid()
 
 				@renderDragHint $dragHint, drag, modified
 
