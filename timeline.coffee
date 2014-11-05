@@ -415,7 +415,6 @@ class TL.InteractiveCreationMode
 		@isActive = no
 		@escHandler = (e)=>
 			@deactivate() if e.which is 27
-			alert 123 if e.which is 27
 		@build()
 
 	build: ->
