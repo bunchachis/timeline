@@ -196,6 +196,12 @@ class TL.Timeline extends TL.EventEmitter
 			dash.render() for dash in @dashes
 			@icm.render()
 
+	warn: (message)->
+		if @config.isStrict
+			throw new Error message
+		else 
+			console?.error? message 
+
 	createElement: (type, data = {})->
 		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
 
@@ -205,7 +211,8 @@ class TL.Timeline extends TL.EventEmitter
 	rawAddRange: (range)->
 		for elseRange in @ranges
 			if range.from < elseRange.raw.to and range.to > elseRange.raw.from 
-				throw 'Can\'t add range overlapping existing one'
+				@warn 'Can\'t add range overlapping existing one'
+				return
 
 		@ranges.push @createElement 'Range', range
 
@@ -216,7 +223,8 @@ class TL.Timeline extends TL.EventEmitter
 	rawAddGroup: (group)->
 		for elseGroup in @groups
 			if elseGroup.raw.id is group.id
-				throw 'Can\'t add group with same id as existing one has'
+				@warn 'Can\'t add group with same id as existing one has'
+				return
 
 		@groups.push @createElement 'Group', group
 
@@ -227,7 +235,8 @@ class TL.Timeline extends TL.EventEmitter
 	rawAddLine: (line)->
 		for elseLine in @lines
 			if elseLine.raw.id is line.id
-				throw 'Can\'t add line with same id as existing one has'
+				@warn 'Can\'t add line with same id as existing one has'
+				return
 
 		@lines.push @createElement 'Line', line
 
@@ -238,7 +247,8 @@ class TL.Timeline extends TL.EventEmitter
 	rawAddDashRule: (rule)->
 		for elseRule in @dashRules
 			if elseRule.raw.id is rule.id
-				throw 'Can\'t add dash rule with same id as existing one has'
+				@warn 'Can\'t add dash rule with same id as existing one has'
+				return
 
 		@dashRules.push @createElement 'DashRule', rule
 
@@ -251,7 +261,8 @@ class TL.Timeline extends TL.EventEmitter
 
 	rawAddItem: (item)->
 		unless item.isValid()
-			throw 'Can\'t add item due to its invalidity'
+			@warn 'Can\'t add item due to its invalidity'
+			return
 
 		@items.push item 
 
@@ -321,6 +332,7 @@ class TL.Timeline extends TL.EventEmitter
 		ranges: []
 		groups: []
 		lines: []
+		isStrict: no
 
 	getGroupById: (groupId)->
 		if groupId?
@@ -1350,7 +1362,9 @@ class TL.Element.Item extends TL.Element
 				group = @getLine().getGroup()
 				parentOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
 				drag = {event: e, parentOffset, holdPos}
-				drag.domPos = @calcDragDomPos drag
+				drag.domPos = 
+					left: drag.event.pageX - drag.parentOffset.left - drag.holdPos.left
+					top: drag.event.pageY - drag.parentOffset.top - drag.holdPos.top
 
 				duration = @getDuration()
 				modified.raw.from = @timeline.approxTime @timeline.getTime drag.domPos.left
@@ -1375,10 +1389,6 @@ class TL.Element.Item extends TL.Element
 					@timeline.fireEvent('item:modify', item: modified, originalItem: @)
 						$.extend @raw, modified.raw
 						@render()
-
-	calcDragDomPos: (drag)->
-		left: drag.event.pageX - drag.parentOffset.left - drag.holdPos.left
-		top: drag.event.pageY - drag.parentOffset.top - drag.holdPos.top
 
 	renderDragHint: ($dom, drag, modified)->
 		@fillDragHint $dom, drag, modified
