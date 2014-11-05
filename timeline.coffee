@@ -5,6 +5,12 @@ TL.mixOf = (mixins...) ->
 		@mixinInitters = []
 		@mixinDeinitters = []
 
+		constructor: ->
+			@initMixins()
+
+		destructor: ->
+			@deinitMixins()
+
 		initMixins: ->
 			initter.call @ for initter in @constructor.mixinInitters
 			null
@@ -739,7 +745,10 @@ class TL.MultiViewed
 class TL.Element extends TL.mixOf TL.Sized, TL.Registrable, TL.MultiViewed, TL.ResourceHolder
 	constructor: (@timeline, @raw = {})->
 		@className = @getClassName()
-		@initMixins()
+		super()
+		@init()
+
+	init: ->
 
 	getClassName: ->
 		@constructor.name.toLowerCase()
@@ -1550,14 +1559,8 @@ class TL.Element.Item extends TL.Element
 		yes
 
 	remove: ->
-		@destroy()
 		@timeline.items = @timeline.items.filter (item)=> @ isnt item
-
-	destroy: ->
-		for name, view of @views
-			view.$dom.remove()
-			view.$dom = null
-			@views[name] = null
+		@destructor()
 
 class TL.Element.DashRule
 	constructor: (@timeline, @raw = {})->
