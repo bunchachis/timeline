@@ -593,7 +593,8 @@
         ranges: [],
         groups: [],
         lines: [],
-        isStrict: false
+        isStrict: false,
+        scrollPointPosition: .5
       };
     };
 
@@ -749,7 +750,7 @@
       console.log(rangeBeforeTime);
       console.log("Postoffset: " + offset);
       viewWidth = this.field.getView().$dom.width();
-      offset = offset - viewWidth / 2;
+      offset = offset - viewWidth * this.config.scrollPointPosition;
       if (offset < 0) {
         offset = 'left';
       }

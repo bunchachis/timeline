@@ -343,6 +343,7 @@ class TL.Timeline extends TL.EventEmitter
 		groups: []
 		lines: []
 		isStrict: no
+		scrollPointPosition: .5 # float [0 to 1]
 
 	getGroupById: (groupId)->
 		if groupId?
@@ -429,7 +430,7 @@ class TL.Timeline extends TL.EventEmitter
 		viewWidth = @field.getView().$dom.width()
 		#fullWidth = TL.Misc.sum(range.getOuterWidth() for range in @ranges)
 
-		offset = offset - viewWidth / 2
+		offset = offset - viewWidth * @config.scrollPointPosition
 		offset = 'left' if offset < 0
 		console.log "Final offset: #{offset}"
 		@ruler.getView().$dom.mCustomScrollbar 'scrollTo', x: offset
