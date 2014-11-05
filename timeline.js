@@ -361,7 +361,7 @@
     }
 
     Timeline.prototype.render = function() {
-      var dash, group, line, range, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
+      var dash, group, item, line, range, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _ref3, _ref4;
       if (this.fireEvent('render')) {
         this.root.render();
         this.sidebar.render();
@@ -387,6 +387,11 @@
         for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
           dash = _ref3[_l];
           dash.render();
+        }
+        _ref4 = this.items;
+        for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
+          item = _ref4[_m];
+          item.render();
         }
         this.now.render();
         return this.icm.render();

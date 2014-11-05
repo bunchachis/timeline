@@ -202,6 +202,7 @@ class TL.Timeline extends TL.EventEmitter
 			range.render() for range in @ranges
 			line.render() for line in @lines
 			dash.render() for dash in @dashes
+			item.render() for item in @items
 			@now.render()
 			@icm.render()
 
