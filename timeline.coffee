@@ -185,6 +185,8 @@ class TL.Timeline extends TL.EventEmitter
 
 		@checkVerticalFitting()
 
+		@now = @createElement 'Now'
+
 		@icm = new TL.InteractiveCreationMode @
 
 		@render()
@@ -200,6 +202,7 @@ class TL.Timeline extends TL.EventEmitter
 			range.render() for range in @ranges
 			line.render() for line in @lines
 			dash.render() for dash in @dashes
+			@now.render()
 			@icm.render()
 
 	warn: (message)->
@@ -1601,3 +1604,62 @@ class TL.Element.DashRule
 		step = @raw.step ? Infinity
 		offset = @raw.offset ? 0
 		(time - offset) % step == 0
+
+class TL.Element.Now extends TL.Element
+	getClassName: ->
+		'now'
+
+	init: ->
+		@interval = setInterval =>
+			nowString = moment().format('DD.MM.YYYY HH:mm:ss')
+			@raw.time = moment.tz(nowString, 'DD.MM.YYYY HH:mm:ss', @timeline.config.timezone).unix()
+			@render()
+		, 1000
+
+	deinit: ->
+		clearInterval @interval
+
+	createViews: ->
+		@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
+		@createView 'atRuler', @timeline.ruler.getView()
+
+	createViewDom: (parent)->
+		TL.Misc.addDom 'now', parent.$dom
+
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
+
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
+
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			view.$dom.show().css left: offset
+		else
+			view.$dom.hide()
+
+	renderAtRuler: (view)->
+		@fillAtRuler view
+		@placeAtRuler view
+
+	fillAtRuler: (view)->
+		@lookupProperty('fillAtRuler').call @, view
+
+	@fillAtRuler: (view)->
+
+	placeAtRuler: (view)->
+		@lookupProperty('placeAtRuler').call @, view
+
+	@placeAtRuler: (view)->
+		offset = @timeline.getOffset @raw.time
+		if offset?
+			view.$dom.show().css left: offset
+		else 
+			view.$dom.hide()
