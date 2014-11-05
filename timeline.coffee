@@ -408,7 +408,34 @@ class TL.Timeline extends TL.EventEmitter
 			if @ruler.doesSizeDependOnParent()
 				throw 'In timeline auto-height mode the ruler size must not be specified in parts of remaining space' 
 			for group in @groups when group.doesSizeDependOnParent()
-				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space' 
+				throw 'In timeline auto-height mode there must not be groups with size specified in parts of remaining space'
+
+	scrollToTime: (time)->
+		time ?= @getCurrentTime()
+		
+		offset = @getOffset time
+		console.log "Preoffset: #{offset}"
+		unless offset?
+			for range in @ranges
+				rangeBeforeTime = range if range.raw.to <= time
+			offset = if rangeBeforeTime?
+				rangeBeforeTime.getOffset() + rangeBeforeTime.getOuterWidth() - 1
+			else
+				0
+		console.log rangeBeforeTime
+		console.log "Postoffset: #{offset}"
+
+		viewWidth = @field.getView().$dom.width()
+		#fullWidth = TL.Misc.sum(range.getOuterWidth() for range in @ranges)
+
+		offset = offset - viewWidth / 2
+		offset = 'left' if offset < 0
+		console.log "Final offset: #{offset}"
+		@ruler.getView().$dom.mCustomScrollbar 'scrollTo', x: offset
+
+	getCurrentTime: ->
+		nowString = moment().format('DD.MM.YYYY HH:mm:ss')
+		moment.tz(nowString, 'DD.MM.YYYY HH:mm:ss', @config.timezone).unix()
 
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
@@ -1610,8 +1637,7 @@ class TL.Element.Now extends TL.Element
 
 	init: ->
 		@interval = setInterval =>
-			nowString = moment().format('DD.MM.YYYY HH:mm:ss')
-			@raw.time = moment.tz(nowString, 'DD.MM.YYYY HH:mm:ss', @timeline.config.timezone).unix()
+			@raw.time = @timeline.getCurrentTime() 
 			@render()
 		, 1000
 
