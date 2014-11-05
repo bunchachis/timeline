@@ -575,6 +575,7 @@
         },
         item: {
           isDraggable: true,
+          isResizable: true,
           canCrossRanges: true,
           fill: null,
           place: null,
@@ -594,7 +595,7 @@
         groups: [],
         lines: [],
         isStrict: false,
-        scrollPointPosition: .5
+        scrollPointPosition: .1
       };
     };
 
@@ -2265,6 +2266,10 @@
       return this.lookupProperty('isDraggable', true);
     };
 
+    Item.prototype.isResizable = function() {
+      return this.lookupProperty('isResizable', true);
+    };
+
     Item.prototype.canCrossRanges = function() {
       return this.lookupProperty('canCrossRanges', true);
     };
@@ -2278,9 +2283,15 @@
       switch (type) {
         case 'default':
           $dom = TL.Misc.addDom('item', parent.$dom);
-          this.makeDraggable($dom);
-          this.makeResizeableLeft($dom);
-          this.makeResizeableRight($dom);
+          if (this.isDraggable()) {
+            this.makeDraggable($dom);
+          }
+          if (this.isResizable()) {
+            this.makeResizeableLeft($dom);
+          }
+          if (this.isResizable()) {
+            this.makeResizeableRight($dom);
+          }
           return $dom;
       }
     };

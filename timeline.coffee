@@ -326,6 +326,7 @@ class TL.Timeline extends TL.EventEmitter
 			placeAtSidebar: null
 		item:
 			isDraggable: yes
+			isResizable: yes
 			canCrossRanges: yes
 			fill: null
 			place: null
@@ -343,7 +344,7 @@ class TL.Timeline extends TL.EventEmitter
 		groups: []
 		lines: []
 		isStrict: no
-		scrollPointPosition: .5 # float [0 to 1]
+		scrollPointPosition: .1 # float [0 to 1]
 
 	getGroupById: (groupId)->
 		if groupId?
@@ -1331,6 +1332,9 @@ class TL.Element.Item extends TL.Element
 	isDraggable: ->
 		@lookupProperty 'isDraggable', yes
 
+	isResizable: ->
+		@lookupProperty 'isResizable', yes
+
 	canCrossRanges: ->
 		@lookupProperty 'canCrossRanges', yes
 
@@ -1341,9 +1345,9 @@ class TL.Element.Item extends TL.Element
 		switch type
 			when 'default'
 				$dom = TL.Misc.addDom 'item', parent.$dom
-				@makeDraggable $dom
-				@makeResizeableLeft $dom
-				@makeResizeableRight $dom
+				@makeDraggable $dom if @isDraggable()
+				@makeResizeableLeft $dom if @isResizable()
+				@makeResizeableRight $dom if @isResizable()
 				$dom
 
 	renderDefault: (view)->
