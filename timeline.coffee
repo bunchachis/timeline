@@ -1063,22 +1063,86 @@ class TL.Element.Group extends TL.Element
 		@createView 'atSidebar', @timeline.sidebar.getView()
 
 	createViewDom: (parent, type)->
-		$dom = TL.Misc.addDom 'group', parent.$dom
-		$dom.data 'timeline-host-object', @
-		switch type
-			when 'default'
-				TL.Misc.scrollize $dom, 'xy', [
-					{axis: 'x', getTarget: => 
-						targets = (elseGroup.getView().$dom for elseGroup in @timeline.groups when elseGroup isnt @)
-						targets.push $rulerDom if ($rulerDom = @timeline.ruler.getView().$dom)?
-						targets
-					},
-					{axis: 'y', getTarget: => @getView('atSidebar')?.$dom ? null}
-				]
-			when 'atSidebar'
-				TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView().$dom}]
+    $dom = TL.Misc.addDom 'group', parent.$dom
+    $dom.data 'timeline-host-object', @
+    switch type
+      when "default"
+        TL.Misc.scrollize $dom, "xy", [
+          {
+            axis: "x"
+            getTarget: ((_this) ->
+              ->
+                targets = (->
+                  _ref = @timeline.groups
+                  _results = []
+                  _i = 0
+                  _len = _ref.length
 
-		$dom
+                  while _i < _len
+                    elseGroup = _ref[_i]
+                    _results.push elseGroup.getView().$dom  if elseGroup isnt this
+                    _i++
+                  _results
+                ).call(_this)
+                targets.push $rulerDom  if ($rulerDom = _this.timeline.ruler.getView().$dom)?
+                targets
+            )(this)
+          }
+          {
+            axis: "y"
+            getTarget: ((_this) ->
+              ->
+                (if (_ref = (if (_ref1 = _this.getView("atSidebar"))? then _ref1.$dom else undefined))? then _ref else null)
+            )(this)
+          }
+        ]
+      when "atSidebar"
+        $dom.on "click", ->
+          object = $dom.data("timeline-host-object")
+          ranges = object.timeline.ranges
+          i = 0
+
+          while i < ranges.length
+            ranges[i].views.atRuler.$dom.empty()
+            i++
+          currentGroupLines = []
+          otherLines = []
+          object.timeline.lines.map (line) ->
+            if object.getLines().indexOf(line) is -1
+              currentGroupLines.push line
+            else
+              otherLines.push line
+            return
+
+          if object.raw.isHide
+            object.timeline.lines = currentGroupLines.slice()
+            otherLines[0].raw.lines.map (line) ->
+              object.timeline.lines.push line  if object.timeline.lines.indexOf(line) is -1
+              return
+
+          else
+            groupLine = {}
+            for key of otherLines[0]
+              groupLine[key] = otherLines[0][key]
+            groupLine.raw.lines = []
+            otherLines.map (line) ->
+              groupLine.raw.lines.push line
+              return
+
+            object.timeline.lines = currentGroupLines.slice()
+            object.timeline.lines.push groupLine
+          object.raw.isHide = not object.raw.isHide
+          object.timeline.render()
+          return
+
+        TL.Misc.scrollize $dom, "y", [
+          axis: "y"
+          getTarget: ((_this) ->
+            ->
+              _this.getView().$dom
+          )(this)
+        ]
+    $dom
 
 	renderDefault: (view)->
 		@fillDefault view
@@ -1579,19 +1643,19 @@ class TL.Element.Item extends TL.Element
 		@lookupProperty('isValid').call @
 
 	@isValid: ->
-		return no unless @raw.from < @raw.to
+    return no  unless @raw.from < @raw.to
+    return no  if (@raw.minDuration?) and @raw.to - @raw.from < @raw.minDuration
+    rangeFrom = @timeline.getRangeByTime(@raw.from)
+    return no  unless rangeFrom?
+    rangeTo = @timeline.getRangeByTime(@raw.to - 1)
+    return no  unless rangeTo?
+    return no  unless @canCrossRanges() or rangeFrom is rangeTo
+    i = 0
 
-		return no if @raw.minDuration? and @raw.to - @raw.from < @raw.minDuration
-
-		rangeFrom = @timeline.getRangeByTime @raw.from
-		return no unless rangeFrom?
-
-		rangeTo = @timeline.getRangeByTime @raw.to - 1
-		return no unless rangeTo?
-
-		return no unless @canCrossRanges() or rangeFrom is rangeTo
-
-		yes
+    while i < @timeline.items.length
+      return no  if @timeline.items[i].raw.lineId is @raw.lineId and @timeline.items[i].raw.to >= @raw.from
+      i++
+    yes
 
 	remove: ->
 		@timeline.items = @timeline.items.filter (item)=> @ isnt item
