@@ -1076,7 +1076,45 @@ class TL.Element.Group extends TL.Element
 					{axis: 'y', getTarget: => @getView('atSidebar')?.$dom ? null}
 				]
 			when 'atSidebar'
-				TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView().$dom}]
+        $dom.on "click", ->
+          object = $dom.data("timeline-host-object")
+          ranges = object.timeline.ranges
+          i = 0
+
+          while i < ranges.length
+            ranges[i].views.atRuler.$dom.empty()
+            i++
+          currentGroupLines = []
+          otherLines = []
+          object.timeline.lines.map (line) ->
+            if object.getLines().indexOf(line) is -1
+              currentGroupLines.push line
+            else
+              otherLines.push line
+            return
+
+          if object.raw.isHide
+            object.timeline.lines = currentGroupLines.slice()
+            otherLines[0].raw.lines.map (line) ->
+              object.timeline.lines.push line  if object.timeline.lines.indexOf(line) is -1
+              return
+
+          else
+            groupLine = {}
+            for key of otherLines[0]
+              groupLine[key] = otherLines[0][key]
+            groupLine.raw.lines = []
+            otherLines.map (line) ->
+              groupLine.raw.lines.push line
+              return
+
+            object.timeline.lines = currentGroupLines.slice()
+            object.timeline.lines.push groupLine
+          object.raw.isHide = not object.raw.isHide
+          object.timeline.render()
+          return
+
+        TL.Misc.scrollize $dom, 'y', [{axis: 'y', getTarget: => @getView().$dom}]
 
 		$dom
 
@@ -1591,6 +1629,11 @@ class TL.Element.Item extends TL.Element
 
 		return no unless @canCrossRanges() or rangeFrom is rangeTo
 
+  i = 0
+  while i < @timeline.items.length
+    return no if @timeline.items[i].raw.lineId is @raw.lineId and @timeline.items[i].raw.to >= @raw.from
+    i++
+    
 		yes
 
 	remove: ->
