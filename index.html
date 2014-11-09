@@ -4,10 +4,12 @@
         <meta charset="utf-8">
         <title>title</title>
         <style>
-        	html, body {background:#348;}
+        	html, body {background:#fff; padding: 0; margin: 0;}
         </style>
 
-        <script src="moment.js"></script> 
+        <script src="moment-with-locales.min.js"></script> 
+        <script src="moment-timezone-with-data-2010-2020.min.js"></script> 
+        <script>moment.locale('ru');</script>
         <script src="jquery-2.1.0.min.js"></script>
         <script src="jquery-ui.min.js"></script>
 
@@ -17,75 +19,126 @@
         <script src="timeline.js"></script> 
         <link rel="stylesheet/less" type="text/css" href="timeline.less" />
 
+        <link rel="stylesheet/less" type="text/css" href="timeline-theme.less" />
+
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
-    	<div id="test"></div>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}); return false;">[+ item]</a>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}, ['users']); return false;">[+ userItem]</a>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}, ['posts']); return false;">[+ postItem]</a> <span id="info"></span>
+    	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){
-	    		window.tl = new Timeline('#test', {
+	    		tl = new TL.Timeline('#test', {
+	    			line: {
+	    				extraOffsetAfter: 1,
+						fillAtSidebar: function(view){
+							view.$dom.children('.tl-text').remove()
+							view.$dom.append(TL.Misc.addDom('text').html(this.raw.html));
+						}
+	    			},
+	    			group: {extraOffsetAfter: 3},
+	    			range: {
+	    				extraOffsetAfter: 5,
+	    				fillAtRuler: function(view){
+	    					view.$dom.children('.tl-text').remove()
+	    					view.$dom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
+	    				}
+	    			},
+	    			item: {
+	    				placeDefault: function(view){
+	    					TL.Element.Item.placeDefault.call(this, view);
+	    					if (this.timeline.getDashRuleById('half-hour').hasDashAtTime(this.raw.from)) {
+	    						offset = this.timeline.getOffset(this.raw.from) + 1; 
+	    						view.$dom.css({
+	    							left: offset,
+	    							width: this.timeline.getOffset(this.raw.to - 1) - offset
+	    						});
+	    					}
+	    				}
+	    			},
+	    			sidebar: {width: 170},
+	    			ruler: {height: 53},
+	    			timezone: 'UTC',
+	    			scale: 10 * 60 / 12, // 10 mins per 12 px
+	    			snapResolution: 5 * 60,
+					dashRules: [
+						{id: '0800', step: 24*60*60, offset: 8*60*60},
+						{id: 'hour', step: 60*60, exclude: ['0800']},
+						{id: 'half-hour', step: 30*60, exclude: ['hour']},
+						{id: '10-mins', step: 10*60, exclude: ['half-hour']},
+					],
+
 	    			ranges: [
 	    				{
-	    					from: moment('1.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('3.09.2014', 'DD.MM.YYYY').unix()
-	    				},
-	    				{
-	    					from: moment('6.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('8.09.2014', 'DD.MM.YYYY').unix()
-	    				},
-	    				{
-	    					from: moment('8.09.2014', 'DD.MM.YYYY').unix(),
-	    					to: moment('11.09.2014', 'DD.MM.YYYY').unix()
+							from: moment.tz('04.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('04.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
+						},
+						{
+							from: moment.tz('05.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('05.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							extraOffsetAfter: 0
 	    				}
 	    			],
 	    			groups: [
-	    				{id: 'Group 1', height: 150},
-	    				{id: 'Group 2', height: 350}
+	    				{id: 'users', height: 'auto', isHide: false},
+	    				{id: 'posts', height: '1 part', isHide: false, extraOffsetAfter: 0}
 	    			],
 	    			lines: [
-	    				{id: 'Line 1A', groupId: 'Group 1', order:1},
-	    				{id: 'Line 2A', groupId: 'Group 1', order:2},
-	    				{id: 'Line 3A', groupId: 'Group 1', order:3},
-	    				{id: 'Line 4A', groupId: 'Group 1', order:4},
-	    				{id: 'Line 5A', groupId: 'Group 1', order:5},
-	    				{id: 'Line 6A', groupId: 'Group 1', order:6},
-	    				{id: 'Line 1B', groupId: 'Group 2'},
-	    				{id: 'Line 2B', groupId: 'Group 2'},
-	    				{id: 'Line 3B', groupId: 'Group 2'},
-	    				{id: 'Line 4B', groupId: 'Group 2'},
-	    				{id: 'Line 5B', groupId: 'Group 2'},
-	    				{id: 'Line 6B', groupId: 'Group 2'},
-	    				{id: 'Line 7B', groupId: 'Group 2'},
-	    				{id: 'Line 8B', groupId: 'Group 2'},
-	    				{id: 'Line 9B', groupId: 'Group 2'}
-	    			],
-	    			scale: 24*3600 / 200, // sec/px
-					dashRules: [
-						{id: '24-hour', type: 'every', step: 24*3600},
-						{id: '12-hour', type: 'every', step: 12*3600},
-						{id: '6-hour', type: 'every', step: 6*3600},
-					]
-	    		}, [
-    				{
-    					lineId: 'Line 1A',
-    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 1'
-    				},
-    				{
-    					lineId: 'Line 2A',
-    					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 2'
-    				},
-    				{
-    					lineId: 'Line 3A',
-    					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
-    					text: 'Item 3'
-    				}
-	    		]);
+	    				{id: 'user:1', groupId: 'users', height: 40, order: 1, html: 'Мастер-приёмщик<br>Иванов И. И.'},
+	    				{id: 'user:2', groupId: 'users', height: 40, order: 2, html: 'Мастер-приёмщик<br>Константинопольский К. К.', extraOffsetAfter: 0},
+	    				{id: 'post:1', groupId: 'posts', height: 68, order: 1, html: '<br><strong>Подъёмник 1</strong><br>80%'},
+	    				{id: 'post:2', groupId: 'posts', height: 68, order: 2, html: '<br><strong>Подъёмник 2</strong><br>80%'},
+	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%'},
+	    				{id: 'post:4', groupId: 'posts', height: 68, order: 4, html: '<br><strong>Подъёмник 4</strong><br>80%'},
+	    				{id: 'post:5', groupId: 'posts', height: 68, order: 5, html: '<br><strong>Подъёмник 5</strong><br>80%'},
+	    				{id: 'post:6', groupId: 'posts', height: 68, order: 6, html: '<br><strong>Подъёмник 6</strong><br>80%'},
+	    				{id: 'post:7', groupId: 'posts', height: 68, order: 7, html: '<br><strong>Подъёмник 7</strong><br>80%'},
+	    				{id: 'post:8', groupId: 'posts', height: 68, order: 8, html: '<br><strong>Подъёмник 8</strong><br>80%'},
+	    				{id: 'post:9', groupId: 'posts', height: 68, order: 9, html: '<br><strong>Подъёмник 9</strong><br>80%', extraOffsetAfter: 0}
+	    			]
+	    		}, []);
+
+				tl.listenEvent('item:modify', function(e){
+					$('#info').html(
+						moment.unix(e.item.raw.from).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+						+ ' — '
+						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+					);
+				});
+
+				tl.listenEvent('item:create', function(e){
+					$('#info').html(
+						moment.unix(e.item.raw.from).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+						+ ' — '
+						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
+					);
+				});
 	    	});
+
+			/*
+			items = [
+				{
+					lineId: 'Line 1A',
+					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 1'
+				},
+				{
+					lineId: 'Line 2A',
+					from: moment('1.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('2.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 2'
+				},
+				{
+					lineId: 'Line 3A',
+					from: moment('2.09.2014 00:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					to: moment('7.09.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss').unix(),
+					text: 'Item 3'
+				}
+			];
+			*/
     	</script>
     </body>
 </html>
