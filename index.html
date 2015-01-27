@@ -31,6 +31,7 @@
     	<script>
     		$(function(){
 	    		tl = new TL.Timeline('#test', {
+	    			isStrict: false,
 	    			line: {
 	    				extraOffsetAfter: 1,
 						fillAtSidebar: function(view){
@@ -72,12 +73,28 @@
 
 	    			ranges: [
 	    				{
+							from: moment.tz('01.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('01.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
+						},
+						{
+							from: moment.tz('02.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('02.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
+						},
+						{
+							from: moment.tz('03.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('03.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
+						},
+						{
 							from: moment.tz('04.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('04.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
 						},
 						{
 							from: moment.tz('05.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('05.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+						{
+							from: moment.tz('06.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('06.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							extraOffsetAfter: 0
 	    				}
 	    			],
@@ -98,7 +115,20 @@
 	    				{id: 'post:8', groupId: 'posts', height: 68, order: 8, html: '<br><strong>Подъёмник 8</strong><br>80%'},
 	    				{id: 'post:9', groupId: 'posts', height: 68, order: 9, html: '<br><strong>Подъёмник 9</strong><br>80%', extraOffsetAfter: 0}
 	    			]
-	    		}, []);
+	    		}, [
+	    			{
+						lineId: 'user:1',
+						from: moment.tz('5.11.1914 12:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+						to: moment.tz('5.11.1914 14:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+						text: 'Item 0'
+					},
+	    			{
+						lineId: 'user:1',
+						from: moment.tz('5.11.2014 12:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+						to: moment.tz('5.11.2014 14:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+						text: 'Item 1'
+					}
+	    		]);
 
 				tl.listenEvent('item:modify', function(e){
 					$('#info').html(

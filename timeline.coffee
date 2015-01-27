@@ -286,54 +286,56 @@ class TL.Timeline extends TL.EventEmitter
 
 	getDefaultConfig: ->
 		field:
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		corner:
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		ruler:
 			isVisible: yes
 			position: 'top'
 			height: 50
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		sidebar:
 			isVisible: yes
 			position: 'left'
 			width: 100
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		range:
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 			fillAtRuler: null
 			placeAtRuler: null
 		group:
 			height: 'auto'
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		line:
 			height: 50
 			extraOffsetBefore: null
 			extraOffsetAfter: null
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 			fillAtSidebar: null
 			placeAtSidebar: null
 		item:
 			isDraggable: yes
 			isResizable: yes
 			canCrossRanges: yes
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
+			fillDetails: null
+			placeDetails: null
 			isValid: null
 		dash:
-			fill: null
-			place: null
+			fillDefault: null
+			placeDefault: null
 		scale: 1
 		timezone: 'UTC'
 		snapResolution: 1
@@ -661,6 +663,9 @@ class TL.Misc
 			$element.appendTo @getScrollContainer $container
 		$element
 
+	@isOrParentOf: ($element, parent)->
+        $element.is(parent) or $.contains($element[0], $(parent)[0])
+
 	@scrollize: ($element, axis, pairs = [])->
 		$inner = @addDom 'scroll-inner', $element
 		$element.data 'scroll-inner', $inner
@@ -676,22 +681,29 @@ class TL.Misc
 
 		config.mouseWheel.axis = 'x' if axis is 'xy'
 
-		if pairs.length
-			config.callbacks.whileScrolling = ->
-				for pair in pairs
-					$targets = pair.getTarget()
-					if $targets?.length
-						position = {}
-						position.x = @mcs.left + 'px' if pair.axis.indexOf('x') > -1
-						position.y = @mcs.top + 'px' if pair.axis.indexOf('y') > -1
+		config.callbacks.whileScrolling = ->
+			$element.trigger 'tl.scroll', [left: @mcs.left, top: @mcs.top]
+			for pair in pairs
+				$targets = pair.getTarget()
+				if $targets?.length
+					position = {}
+					position.x = @mcs.left + 'px' if pair.axis.indexOf('x') > -1
+					position.y = @mcs.top + 'px' if pair.axis.indexOf('y') > -1
 
-						$.each $targets, ->
-							$(@).mCustomScrollbar 'scrollTo', position,
-								scrollInertia: 0
-								timeout: 0
-								callbacks: no
+					$.each $targets, ->
+						$(@).mCustomScrollbar 'scrollTo', position,
+							scrollInertia: 0
+							timeout: 0
+							callbacks: no
+						$(@).trigger 'tl.scroll', [left: parseInt(position.x), top: parseInt(position.y)]
 
 		$element.mCustomScrollbar config
+
+	@getScrollOffset: ($element)->
+		$pos = @getScrollContainer($element).parents('.mCSB_container').position()
+		$pos.left *= -1
+		$pos.top *= -1
+		$pos
 
 	@getScrollContainer: ($element)->
 		$inner = $element.data 'scroll-inner'
@@ -715,6 +727,25 @@ class TL.Misc
 
 	@ucFirst: (string)->
 		string.charAt(0).toUpperCase() + string.slice 1
+
+	@getRect: ($el)->
+		$el[0].getBoundingClientRect()
+
+	@calcPlace: (thisSize, relatedStart, relatedSize, containerStart, containerSize)->
+		relatedEnd = relatedStart + relatedSize
+		containerEnd = containerStart + containerSize
+		if relatedStart + thisSize <= containerEnd
+			if relatedStart >= containerStart
+				relatedStart
+			else
+				containerStart
+		else if relatedEnd - thisSize >= containerStart
+			if relatedEnd <= containerEnd
+				relatedEnd - thisSize
+			else
+				containerEnd - thisSize
+		else 
+			containerEnd - thisSize
 
 TL.registry = new class Registry
 	constructor: ->
@@ -752,9 +783,7 @@ class TL.MultiViewed
 		@createViews()
 
 	deinit: ->
-		for name, view of @views
-			view.$dom.remove()
-			delete view.$dom
+		@removeViews()
 		delete @views
 
 	createViews: ->
@@ -766,6 +795,15 @@ class TL.MultiViewed
 
 	createViewDom: ->
 		$('<div />')
+
+	removeViews: ->
+		@removeView name for name, view of @views
+
+	removeView: (name = 'default')->
+		if @views[name]?
+			@views[name].$dom.remove()
+			delete @views[name].$dom
+			delete @views[name]
 
 	getView: (name = 'default')->
 		@views[name]
@@ -1348,7 +1386,10 @@ class TL.Element.Item extends TL.Element
 				@makeDraggable $dom if @isDraggable()
 				@makeResizeableLeft $dom if @isResizable()
 				@makeResizeableRight $dom if @isResizable()
+				@makeDetailable $dom
 				$dom
+			when 'details'
+				TL.Misc.addDom 'item-details', parent.$dom
 
 	renderDefault: (view)->
 		@fillDefault view
@@ -1378,6 +1419,56 @@ class TL.Element.Item extends TL.Element
 		clone.raw = $.extend {}, @raw
 		clone
 
+	makeDetailable: ($dom)->
+		$dom.click => @showDetails()
+
+	showDetails: ->
+		if !@getView('details')?
+			@createView 'details', @timeline.field.getView()
+			@render()
+
+			@detailsScrollHandler = =>
+				@render()
+			@getLine().getGroup().getView().$dom.on 'tl.scroll', @detailsScrollHandler
+
+			@detailsOutsideHandler = (e)=>
+				@hideDetails() unless TL.Misc.isOrParentOf @getView('details').$dom, e.target
+			$('body').on 'mousedown', @detailsOutsideHandler
+
+	hideDetails: ->
+		@getLine().getGroup().getView().$dom.off 'tl.scroll', @detailsScrollHandler
+		delete @detailsScrollHandler
+		$('body').off 'mousedown', @detailsOutsideHandler	
+		delete @detailsOutsideHandler
+		@removeView 'details'
+
+	renderDetails: (view)->
+		@fillDetails view
+		@placeDetails view
+
+	fillDetails: (view)->
+		@lookupProperty('fillDetails').call @, view
+
+	@fillDetails: (view)->
+		@fillDefault view
+
+	placeDetails: (view)->
+		@lookupProperty('placeDetails').call @, view
+
+	@placeDetails: (view)->
+		view.$dom.css
+			minWidth: @getView().$dom.width()
+			minHeight: @getView().$dom.height()
+
+		thisRect = TL.Misc.getRect view.$dom
+		defaultRect = TL.Misc.getRect @getView().$dom
+		containerRect = TL.Misc.getRect view.parent.$dom
+		parentRect = TL.Misc.getRect view.$dom.offsetParent()
+
+		view.$dom.css
+		 	top: TL.Misc.calcPlace(thisRect.height, defaultRect.top, defaultRect.height, containerRect.top, containerRect.height) - parentRect.top
+		 	left: TL.Misc.calcPlace(thisRect.width, defaultRect.left, defaultRect.width, containerRect.left, containerRect.width) - parentRect.left
+		
 	makeDraggable: ($dom)->
 		modified = null
 		$dragHint = null
