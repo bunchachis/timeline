@@ -7,21 +7,17 @@
         	html, body {background:#fff; padding: 0; margin: 0;}
         </style>
 
-        <script src="moment-with-locales.min.js"></script> 
-        <script src="moment-timezone-with-data-2010-2020.min.js"></script> 
-        <script>moment.locale('ru');</script>
-        <script src="jquery-2.1.0.min.js"></script>
-        <script src="jquery-ui.min.js"></script>
+        <script src="../bower_components/momentjs/min/moment-with-locales.min.js"></script>
+        <script src="../bower_components/moment-timezone/builds/moment-timezone-with-data-2010-2020.min.js"></script>
+        <script src="../bower_components/jquery/dist/jquery.min.js"></script>
+        <script src="../bower_components/jqueryui/jquery-ui.min.js"></script>
+        <script src="../components/jquery.mCustomScrollbar.js"></script>
+        <script src="../src/timeline.js"></script>
 
-        <link rel="stylesheet" href="jquery.mCustomScrollbar.css" />
-        <script src="jquery.mCustomScrollbar.js"></script>
 
-        <script src="timeline.js"></script> 
-        <link rel="stylesheet/less" type="text/css" href="timeline.less" />
-
-        <link rel="stylesheet/less" type="text/css" href="timeline-theme.less" />
-
-        <script src="less-1.7.5.min.js"></script>
+        <link rel="stylesheet" href="../components/jquery.mCustomScrollbar.css" />
+        <link rel="stylesheet" type="text/css" href="../src/styles/timeline.css" />
+        <link rel="stylesheet" type="text/css" href="../src/styles/timeline-theme.css" />
     </head>
     <body>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}); return false;">[+ item]</a>
@@ -30,6 +26,7 @@
     	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){
+                moment.locale('ru');
 	    		tl = new TL.Timeline('#test', {
 	    			isStrict: false,
 	    			line: {
