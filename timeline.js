@@ -6,7 +6,13 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
-  window.TL = TL = {};
+  window.TL = TL = {
+    second: 1,
+    minute: 60,
+    hour: 3600,
+    day: 86400,
+    week: 604800
+  };
 
   TL.mixOf = function() {
     var Mixed, mixins;
@@ -324,6 +330,7 @@
       this.groups = [];
       this.ranges = [];
       this.lines = [];
+      this.slots = [];
       this.dashRules = [];
       this.dashes = [];
       this.items = [];
@@ -362,7 +369,7 @@
     }
 
     Timeline.prototype.render = function() {
-      var dash, group, item, line, range, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _ref, _ref1, _ref2, _ref3, _ref4;
+      var dash, group, item, line, range, slot, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _m, _n, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       if (this.fireEvent('render')) {
         this.root.render();
         this.sidebar.render();
@@ -384,14 +391,19 @@
           line = _ref2[_k];
           line.render();
         }
-        _ref3 = this.dashes;
+        _ref3 = this.slots;
         for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
-          dash = _ref3[_l];
+          slot = _ref3[_l];
+          slot.render();
+        }
+        _ref4 = this.dashes;
+        for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
+          dash = _ref4[_m];
           dash.render();
         }
-        _ref4 = this.items;
-        for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
-          item = _ref4[_m];
+        _ref5 = this.items;
+        for (_n = 0, _len5 = _ref5.length; _n < _len5; _n++) {
+          item = _ref5[_n];
           item.render();
         }
         this.now.render();
@@ -412,7 +424,7 @@
       if (data == null) {
         data = {};
       }
-      return ((_ref = this.config.fillAtSidebar) != null ? _ref : this.constructor.createElement).call(this, type, data);
+      return ((_ref = this.config.createElement) != null ? _ref : this.constructor.createElement).call(this, type, data);
     };
 
     Timeline.createElement = function(type, data) {
@@ -659,6 +671,17 @@
         lineEnd = lineStart + line.getInnerHeight();
         if ((lineStart <= verticalOffset && verticalOffset < lineEnd)) {
           return line;
+        }
+      }
+    };
+
+    Timeline.prototype.getSlotByLineIdAndTime = function(lineId, time) {
+      var slot, _i, _len, _ref;
+      _ref = this.slots;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        slot = _ref[_i];
+        if (slot.raw.lineId === lineId && (slot.raw.from <= time && time < slot.raw.to)) {
+          return slot;
         }
       }
     };
@@ -2209,6 +2232,10 @@
       return Line.__super__.constructor.apply(this, arguments);
     }
 
+    Line.prototype.init = function() {
+      return this.insertSlots();
+    };
+
     Line.prototype.getClassName = function() {
       return 'line';
     };
@@ -2313,7 +2340,129 @@
       });
     };
 
+    Line.prototype.removeSlots = function() {
+      var slot, _i, _len, _ref, _results;
+      _ref = this.timeline.slots;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        slot = _ref[_i];
+        if (this.raw.id === slot.raw.lineId) {
+          _results.push(slots.remove());
+        }
+      }
+      return _results;
+    };
+
+    Line.prototype.insertSlots = function() {
+      return this.timeline.slots = this.timeline.slots.concat(this.calculateSlots());
+    };
+
+    Line.prototype.calculateSlots = function() {
+      var duration, from, offset, range, rule, slots, step, to, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
+      slots = [];
+      if (this.raw.restrictSlotsTo != null) {
+        _ref = this.raw.restrictSlotsTo;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          rule = _ref[_i];
+          step = (_ref1 = rule.step) != null ? _ref1 : Infinity;
+          offset = (_ref2 = rule.offset) != null ? _ref2 : 0;
+          duration = Math.min(rule.duration, step);
+          _ref3 = this.timeline.ranges;
+          for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
+            range = _ref3[_j];
+            if (step === Infinity) {
+              from = offset;
+            } else {
+              from = (Math.floor(range.raw.from / step) - 1) * step + offset % step;
+            }
+            while (from < range.raw.to) {
+              to = from + duration;
+              if (from < range.raw.to && to > range.raw.from) {
+                slots.push(this.timeline.createElement('Slot', {
+                  from: Math.max(from, range.raw.from),
+                  to: Math.min(to, range.raw.to),
+                  groupId: this.raw.groupId,
+                  lineId: this.raw.id
+                }));
+              }
+              from += step;
+            }
+          }
+        }
+      } else {
+        _ref4 = this.timeline.ranges;
+        for (_k = 0, _len2 = _ref4.length; _k < _len2; _k++) {
+          range = _ref4[_k];
+          slots.push(this.timeline.createElement('Slot', {
+            from: range.raw.from,
+            to: range.raw.to,
+            groupId: this.raw.groupId,
+            lineId: this.raw.id
+          }));
+        }
+      }
+      return slots;
+    };
+
     return Line;
+
+  })(TL.Element);
+
+  TL.Element.Slot = (function(_super) {
+    __extends(Slot, _super);
+
+    function Slot() {
+      return Slot.__super__.constructor.apply(this, arguments);
+    }
+
+    Slot.prototype.getClassName = function() {
+      return 'Slot';
+    };
+
+    Slot.prototype.getLine = function() {
+      return this.timeline.getLineById(this.raw.lineId);
+    };
+
+    Slot.prototype.getGroup = function() {
+      return this.timeline.getGroupById(this.raw.groupId);
+    };
+
+    Slot.prototype.createViews = function() {
+      return this.createView('default', this.getGroup().getView());
+    };
+
+    Slot.prototype.createViewDom = function(parent) {
+      return TL.Misc.addDom('slot', parent.$dom);
+    };
+
+    Slot.prototype.renderDefault = function(view) {
+      this.fillDefault(view);
+      return this.placeDefault(view);
+    };
+
+    Slot.prototype.fillDefault = function(view) {
+      return this.lookupProperty('fillDefault').call(this, view);
+    };
+
+    Slot.fillDefault = function(view) {};
+
+    Slot.prototype.placeDefault = function(view) {
+      return this.lookupProperty('placeDefault').call(this, view);
+    };
+
+    Slot.placeDefault = function(view) {
+      var line, offset;
+      line = this.getLine();
+      offset = this.timeline.getOffset(this.raw.from);
+      return view.$dom.css({
+        top: line.getVerticalOffset() + line.getInternalVerticalOffset(),
+        height: line.getInnerHeight(),
+        left: offset,
+        width: this.timeline.getOffset(this.raw.to - 1) - offset
+      });
+    };
+
+    return Slot;
 
   })(TL.Element);
 
@@ -2779,7 +2928,7 @@
     };
 
     Item.isValid = function() {
-      var rangeFrom, rangeTo;
+      var rangeFrom, rangeTo, slotFrom, slotTo;
       if (!(this.raw.from < this.raw.to)) {
         return false;
       }
@@ -2794,8 +2943,18 @@
       if (rangeTo == null) {
         return false;
       }
-      if (!(this.canCrossRanges() || rangeFrom === rangeTo)) {
+      slotFrom = this.timeline.getSlotByLineIdAndTime(this.raw.lineId, this.raw.from);
+      if (slotFrom == null) {
         return false;
+      }
+      slotTo = this.timeline.getSlotByLineIdAndTime(this.raw.lineId, this.raw.to - 1);
+      if (slotTo == null) {
+        return false;
+      }
+      if (!this.canCrossRanges()) {
+        if (!(rangeFrom === rangeTo && slotFrom === slotTo)) {
+          return false;
+        }
       }
       return true;
     };

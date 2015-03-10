@@ -1,4 +1,9 @@
-window.TL = TL = {}
+window.TL = TL = 
+	second: 1
+	minute: 60
+	hour: 3600
+	day: 86400
+	week: 604800
 
 TL.mixOf = (mixins...) ->
 	class Mixed
@@ -165,6 +170,7 @@ class TL.Timeline extends TL.EventEmitter
 		@groups = []
 		@ranges = []
 		@lines = []
+		@slots = []
 		@dashRules = []
 		@dashes = []
 		@items = []
@@ -201,6 +207,7 @@ class TL.Timeline extends TL.EventEmitter
 			group.render() for group in @groups
 			range.render() for range in @ranges
 			line.render() for line in @lines
+			slot.render() for slot in @slots
 			dash.render() for dash in @dashes
 			item.render() for item in @items
 			@now.render()
@@ -213,7 +220,7 @@ class TL.Timeline extends TL.EventEmitter
 			console?.error? message 
 
 	createElement: (type, data = {})->
-		(@config.fillAtSidebar ? @constructor.createElement).call @, type, data
+		(@config.createElement ? @constructor.createElement).call @, type, data
 
 	@createElement: (type, data = {})->
 		new TL.Element[type] @, data
@@ -377,6 +384,11 @@ class TL.Timeline extends TL.EventEmitter
 			lineEnd = lineStart + line.getInnerHeight()
 			if lineStart <= verticalOffset < lineEnd
 				return line
+
+	getSlotByLineIdAndTime: (lineId, time)->
+		for slot in @slots
+			if slot.raw.lineId is lineId and slot.raw.from <= time < slot.raw.to
+				return slot
 
 	getDashRuleById: (ruleId)->
 		for rule in @dashRules
@@ -1284,6 +1296,9 @@ class TL.Element.Dash extends TL.Element
 			view.$dom.css left: offset
 
 class TL.Element.Line extends TL.Element
+	init: ->
+		@insertSlots()
+
 	getClassName: ->
 		'line'
 
@@ -1356,6 +1371,83 @@ class TL.Element.Line extends TL.Element
 		view.$dom.css
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
+
+	removeSlots: ->
+		slots.remove() for slot in @timeline.slots when @raw.id is slot.raw.lineId
+
+	insertSlots: ->
+		@timeline.slots = @timeline.slots.concat @calculateSlots()
+
+	calculateSlots: ->
+		slots = []
+		if @raw.restrictSlotsTo?
+			for rule in @raw.restrictSlotsTo
+				step = rule.step ? Infinity
+				offset = rule.offset ? 0
+				duration = Math.min rule.duration, step
+
+				for range in @timeline.ranges
+					if step is Infinity
+						from = offset
+					else
+						from = (Math.floor(range.raw.from / step) - 1) * step + offset % step
+
+					while from < range.raw.to
+						to = from + duration
+						if from < range.raw.to and to > range.raw.from 
+							slots.push @timeline.createElement 'Slot',
+								from: Math.max from, range.raw.from
+								to: Math.min to, range.raw.to
+								groupId: @raw.groupId
+								lineId: @raw.id
+
+						from += step
+		else
+			for range in @timeline.ranges
+				slots.push @timeline.createElement 'Slot',
+					from: range.raw.from
+					to: range.raw.to
+					groupId: @raw.groupId
+					lineId: @raw.id
+
+		slots
+
+class TL.Element.Slot extends TL.Element
+	getClassName: ->
+		'Slot'
+
+	getLine: ->
+		@timeline.getLineById @raw.lineId
+
+	getGroup: ->
+		@timeline.getGroupById @raw.groupId
+
+	createViews: ->
+		@createView 'default', @getGroup().getView()
+
+	createViewDom: (parent)->
+		TL.Misc.addDom 'slot', parent.$dom
+
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
+
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
+
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		line = @getLine()
+		offset = @timeline.getOffset @raw.from
+		view.$dom.css
+			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
+			height: line.getInnerHeight()
+			left: offset
+			width: @timeline.getOffset(@raw.to-1) - offset
 
 class TL.Element.Item extends TL.Element
 	getClassName: ->
@@ -1680,7 +1772,14 @@ class TL.Element.Item extends TL.Element
 		rangeTo = @timeline.getRangeByTime @raw.to - 1
 		return no unless rangeTo?
 
-		return no unless @canCrossRanges() or rangeFrom is rangeTo
+		slotFrom = @timeline.getSlotByLineIdAndTime @raw.lineId, @raw.from
+		return no unless slotFrom?
+
+		slotTo = @timeline.getSlotByLineIdAndTime @raw.lineId, @raw.to - 1
+		return no unless slotTo?
+
+		if !@canCrossRanges()
+			return no unless rangeFrom is rangeTo and slotFrom is slotTo
 
 		yes
 

@@ -24,9 +24,9 @@
         <script src="less-1.7.5.min.js"></script>
     </head>
     <body>
-		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}); return false;">[+ item]</a>
-		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}, ['users']); return false;">[+ userItem]</a>
-		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * 60}, ['posts']); return false;">[+ postItem]</a> <span id="info"></span>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}); return false;">[+ item]</a>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['users']); return false;">[+ userItem]</a>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['posts']); return false;">[+ postItem]</a> <span id="info"></span>
     	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){
@@ -62,13 +62,13 @@
 	    			sidebar: {width: 170},
 	    			ruler: {height: 53},
 	    			timezone: 'UTC',
-	    			scale: 10 * 60 / 12, // 10 mins per 12 px
-	    			snapResolution: 5 * 60,
+	    			scale: 10 * TL.minute / 12, // 10 mins per 12 px
+	    			snapResolution: 5 * TL.minute,
 					dashRules: [
-						{id: '0800', step: 24*60*60, offset: 8*60*60},
-						{id: 'hour', step: 60*60, exclude: ['0800']},
-						{id: 'half-hour', step: 30*60, exclude: ['hour']},
-						{id: '10-mins', step: 10*60, exclude: ['half-hour']},
+						{id: '0800', step: TL.day, offset: 8 * TL.hour},
+						{id: 'hour', step: TL.hour, exclude: ['0800']},
+						{id: 'half-hour', step: TL.hour / 2, exclude: ['hour']},
+						{id: '10-mins', step: 10 * TL.minute, exclude: ['half-hour']},
 					],
 
 	    			ranges: [
@@ -103,9 +103,23 @@
 	    				{id: 'posts', height: '1 part', extraOffsetAfter: 0}
 	    			],
 	    			lines: [
-	    				{id: 'user:1', groupId: 'users', height: 40, order: 1, html: 'Мастер-приёмщик<br>Иванов И. И.'},
+	    				{id: 'user:1', groupId: 'users', height: 40, order: 1, html: 'Мастер-приёмщик<br>Иванов И. И.', restrictSlotsTo: [
+	    					{
+	    						// Доступно каждую неделю в среду (напр. 5.11.14) с 9:30 утра в течении 8-ми часов
+	    						offset: moment.tz('3, 09:30', 'E, HH:mm', 'UTC').unix(),
+	    						duration: 8 * TL.hour,
+	    						step: TL.week
+	    					}
+	    				]},
 	    				{id: 'user:2', groupId: 'users', height: 40, order: 2, html: 'Мастер-приёмщик<br>Константинопольский К. К.', extraOffsetAfter: 0},
-	    				{id: 'post:1', groupId: 'posts', height: 68, order: 1, html: '<br><strong>Подъёмник 1</strong><br>80%'},
+	    				{id: 'post:1', groupId: 'posts', height: 68, order: 1, html: '<br><strong>Подъёмник 1</strong><br>80%', restrictSlotsTo: [
+	    					{
+	    						// Доступно каждый день с 10-ти утра в течении 4-х часов
+	    						offset: moment.tz('10', 'HH', 'UTC').unix(),
+	    						duration: 4 * TL.hour,
+	    						step: TL.day
+	    					}
+	    				]},
 	    				{id: 'post:2', groupId: 'posts', height: 68, order: 2, html: '<br><strong>Подъёмник 2</strong><br>80%'},
 	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%'},
 	    				{id: 'post:4', groupId: 'posts', height: 68, order: 4, html: '<br><strong>Подъёмник 4</strong><br>80%'},
