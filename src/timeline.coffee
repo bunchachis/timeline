@@ -538,7 +538,11 @@ class TL.InteractiveCreationMode
 
 		@clickHandler = (e)=>
 			if @from?
-				@activateState 'SetEnding'
+				if @itemTemplate.defaultDuration?
+					@to = @from + @itemTemplate.defaultDuration
+					@tryCreateItem()
+				else 
+					@activateState 'SetEnding'
 		@timeline.field.getView().$dom.on 'click', @clickHandler	
 
 	deactivateStateSetBeginning: ->
@@ -578,15 +582,18 @@ class TL.InteractiveCreationMode
 
 		@clickHandler = (e)=>
 			if @to?
-				item = @timeline.createItem $.extend @itemTemplate, 
-					from: @from
-					to: @to
-					lineId: @line.raw.id
-
-				if item.isValid()
-					if @timeline.addItem item
-						@deactivate()
+				@tryCreateItem()
 		@timeline.field.getView().$dom.on 'click', @clickHandler	
+
+	tryCreateItem: ->
+		item = @timeline.createItem $.extend @itemTemplate, 
+			from: @from
+			to: @to
+			lineId: @line.raw.id
+
+		if item.isValid()
+			if @timeline.addItem item
+				@deactivate()
 
 	deactivateStateSetEnding: ->
 		@render()
@@ -624,7 +631,11 @@ class TL.InteractiveCreationMode
 			switch @stateName
 				when 'SetBeginning'
 					offset = @timeline.getOffset @from
-					width = ''
+					if @itemTemplate.defaultDuration?
+						toOffset = @timeline.getOffset(@from + @itemTemplate.defaultDuration - 1)
+						width = if toOffset? then toOffset - offset else ''
+					else
+						width = ''
 				when 'SetEnding'
 					offset = @timeline.getOffset @from
 					width = if @to? then @timeline.getOffset(@to - 1) - offset else null

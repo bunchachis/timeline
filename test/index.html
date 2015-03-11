@@ -22,7 +22,8 @@
     <body>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}); return false;">[+ item]</a>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['users']); return false;">[+ userItem]</a>
-		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['posts']); return false;">[+ postItem]</a> <span id="info"></span>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['posts']); return false;">[+ postItem]</a>
+		<a href="#" onclick="tl.icm.activate({text: 'new-item', defaultDuration: TL.hour}); return false;">[+ 1-hour item]</a> <span id="info"></span>
     	<div id="test" style="height: 500px;"></div>
     	<script>
     		$(function(){

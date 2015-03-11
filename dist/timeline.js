@@ -912,7 +912,12 @@
       this.clickHandler = (function(_this) {
         return function(e) {
           if (_this.from != null) {
-            return _this.activateState('SetEnding');
+            if (_this.itemTemplate.defaultDuration != null) {
+              _this.to = _this.from + _this.itemTemplate.defaultDuration;
+              return _this.tryCreateItem();
+            } else {
+              return _this.activateState('SetEnding');
+            }
           }
         };
       })(this);
@@ -964,22 +969,26 @@
       this.timeline.field.getView().$dom.on('mouseleave', this.leaveHandler);
       this.clickHandler = (function(_this) {
         return function(e) {
-          var item;
           if (_this.to != null) {
-            item = _this.timeline.createItem($.extend(_this.itemTemplate, {
-              from: _this.from,
-              to: _this.to,
-              lineId: _this.line.raw.id
-            }));
-            if (item.isValid()) {
-              if (_this.timeline.addItem(item)) {
-                return _this.deactivate();
-              }
-            }
+            return _this.tryCreateItem();
           }
         };
       })(this);
       return this.timeline.field.getView().$dom.on('click', this.clickHandler);
+    };
+
+    InteractiveCreationMode.prototype.tryCreateItem = function() {
+      var item;
+      item = this.timeline.createItem($.extend(this.itemTemplate, {
+        from: this.from,
+        to: this.to,
+        lineId: this.line.raw.id
+      }));
+      if (item.isValid()) {
+        if (this.timeline.addItem(item)) {
+          return this.deactivate();
+        }
+      }
     };
 
     InteractiveCreationMode.prototype.deactivateStateSetEnding = function() {
@@ -1038,13 +1047,18 @@
     };
 
     InteractiveCreationMode.prototype.placeHelper = function($helper) {
-      var group, offset, width, _ref;
+      var group, offset, toOffset, width, _ref;
       group = $helper.parents('.tl-group').data('timeline-host-object');
       if (group === ((_ref = this.line) != null ? _ref.getGroup() : void 0)) {
         switch (this.stateName) {
           case 'SetBeginning':
             offset = this.timeline.getOffset(this.from);
-            width = '';
+            if (this.itemTemplate.defaultDuration != null) {
+              toOffset = this.timeline.getOffset(this.from + this.itemTemplate.defaultDuration - 1);
+              width = toOffset != null ? toOffset - offset : '';
+            } else {
+              width = '';
+            }
             break;
           case 'SetEnding':
             offset = this.timeline.getOffset(this.from);
