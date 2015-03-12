@@ -45,6 +45,9 @@ class TL.Resource
 		@destroy = undefined
 
 class TL.ResourceHolder
+	deinit: ->
+		@releaseResources()
+
 	holdResource: (resource)->
 		@heldResources ?= []
 		resource.hold()
@@ -456,6 +459,7 @@ class TL.Timeline extends TL.EventEmitter
 
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
+		@process = null
 		@isActive = no
 		@escHandler = (e)=>
 			@deactivate() if e.which is 27
@@ -480,25 +484,33 @@ class TL.InteractiveCreationMode
 		@placeDashes()
 		@placeHelpers()
 
-	activate: (@itemTemplate = {}, @restrictGroupsIds)->
+	activate: (itemTemplate = {}, restrictGroupsIds)->
+		@deactivate()
+		@itemTemplate = itemTemplate
+		@restrictGroupsIds = restrictGroupsIds
+		@process = new $.Deferred()
 		@isActive = yes
 		@$oldCornerContent = @timeline.corner.getView().$dom.children()
 		@timeline.corner.getView().$dom.empty().append @$indicator
 		$(window).on 'keydown', @escHandler
 		@activateState 'SetBeginning'
+		@process.promise()
 
 	deactivate: ->
-		@isActive = no
-		@$indicator.detach()
-		@timeline.corner.getView().$dom.empty().append @$oldCornerContent
-		@$oldCornerContent = null
-		$(window).off 'keydown', @escHandler
-		@itemTemplate = null
-		@from = null
-		@to = null
-		@line = null
-		@restrictGroupsIds = null
-		@deactivateState @stateName
+		if @isActive
+			@process.reject()
+			@process = null
+			@isActive = no
+			@$indicator.detach()
+			@timeline.corner.getView().$dom.empty().append @$oldCornerContent
+			@$oldCornerContent = null
+			$(window).off 'keydown', @escHandler
+			@itemTemplate = null
+			@from = null
+			@to = null
+			@line = null
+			@restrictGroupsIds = null
+			@deactivateState @stateName
 
 	activateState: (stateName)->
 		@deactivateState @stateName
@@ -593,6 +605,7 @@ class TL.InteractiveCreationMode
 
 		if item.isValid()
 			if @timeline.addItem item
+				@process.resolve(item)
 				@deactivate()
 
 	deactivateStateSetEnding: ->

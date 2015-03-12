@@ -102,6 +102,10 @@
   TL.ResourceHolder = (function() {
     function ResourceHolder() {}
 
+    ResourceHolder.prototype.deinit = function() {
+      return this.releaseResources();
+    };
+
     ResourceHolder.prototype.holdResource = function(resource) {
       if (this.heldResources == null) {
         this.heldResources = [];
@@ -800,6 +804,7 @@
   TL.InteractiveCreationMode = (function() {
     function InteractiveCreationMode(timeline) {
       this.timeline = timeline;
+      this.process = null;
       this.isActive = false;
       this.escHandler = (function(_this) {
         return function(e) {
@@ -839,27 +844,37 @@
     };
 
     InteractiveCreationMode.prototype.activate = function(itemTemplate, restrictGroupsIds) {
-      this.itemTemplate = itemTemplate != null ? itemTemplate : {};
+      if (itemTemplate == null) {
+        itemTemplate = {};
+      }
+      this.deactivate();
+      this.itemTemplate = itemTemplate;
       this.restrictGroupsIds = restrictGroupsIds;
+      this.process = new $.Deferred();
       this.isActive = true;
       this.$oldCornerContent = this.timeline.corner.getView().$dom.children();
       this.timeline.corner.getView().$dom.empty().append(this.$indicator);
       $(window).on('keydown', this.escHandler);
-      return this.activateState('SetBeginning');
+      this.activateState('SetBeginning');
+      return this.process.promise();
     };
 
     InteractiveCreationMode.prototype.deactivate = function() {
-      this.isActive = false;
-      this.$indicator.detach();
-      this.timeline.corner.getView().$dom.empty().append(this.$oldCornerContent);
-      this.$oldCornerContent = null;
-      $(window).off('keydown', this.escHandler);
-      this.itemTemplate = null;
-      this.from = null;
-      this.to = null;
-      this.line = null;
-      this.restrictGroupsIds = null;
-      return this.deactivateState(this.stateName);
+      if (this.isActive) {
+        this.process.reject();
+        this.process = null;
+        this.isActive = false;
+        this.$indicator.detach();
+        this.timeline.corner.getView().$dom.empty().append(this.$oldCornerContent);
+        this.$oldCornerContent = null;
+        $(window).off('keydown', this.escHandler);
+        this.itemTemplate = null;
+        this.from = null;
+        this.to = null;
+        this.line = null;
+        this.restrictGroupsIds = null;
+        return this.deactivateState(this.stateName);
+      }
     };
 
     InteractiveCreationMode.prototype.activateState = function(stateName) {
@@ -986,6 +1001,7 @@
       }));
       if (item.isValid()) {
         if (this.timeline.addItem(item)) {
+          this.process.resolve(item);
           return this.deactivate();
         }
       }
