@@ -335,6 +335,7 @@
       this.ranges = [];
       this.lines = [];
       this.slots = [];
+      this.lockers = [];
       this.dashRules = [];
       this.dashes = [];
       this.items = [];
@@ -373,7 +374,7 @@
     }
 
     Timeline.prototype.render = function() {
-      var dash, group, item, line, range, slot, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _m, _n, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
+      var dash, group, item, line, locker, range, slot, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _len6, _m, _n, _o, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6;
       if (this.fireEvent('render')) {
         this.root.render();
         this.sidebar.render();
@@ -400,14 +401,19 @@
           slot = _ref3[_l];
           slot.render();
         }
-        _ref4 = this.dashes;
+        _ref4 = this.lockers;
         for (_m = 0, _len4 = _ref4.length; _m < _len4; _m++) {
-          dash = _ref4[_m];
+          locker = _ref4[_m];
+          locker.render();
+        }
+        _ref5 = this.dashes;
+        for (_n = 0, _len5 = _ref5.length; _n < _len5; _n++) {
+          dash = _ref5[_n];
           dash.render();
         }
-        _ref5 = this.items;
-        for (_n = 0, _len5 = _ref5.length; _n < _len5; _n++) {
-          item = _ref5[_n];
+        _ref6 = this.items;
+        for (_o = 0, _len6 = _ref6.length; _o < _len6; _o++) {
+          item = _ref6[_o];
           item.render();
         }
         this.now.render();
@@ -2263,7 +2269,7 @@
     }
 
     Line.prototype.init = function() {
-      return this.insertSlots();
+      return this.insertSlotsAndLockers();
     };
 
     Line.prototype.getClassName = function() {
@@ -2370,26 +2376,41 @@
       });
     };
 
-    Line.prototype.removeSlots = function() {
-      var slot, _i, _len, _ref, _results;
+    Line.prototype.removeSlotsAndLockers = function() {
+      var locker, slot, _i, _j, _len, _len1, _ref, _ref1, _results;
       _ref = this.timeline.slots;
-      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         slot = _ref[_i];
         if (this.raw.id === slot.raw.lineId) {
-          _results.push(slots.remove());
+          slots.remove();
+        }
+      }
+      _ref1 = this.timeline.lockers;
+      _results = [];
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        locker = _ref1[_j];
+        if (this.raw.id === locker.raw.lineId) {
+          _results.push(lockers.remove());
         }
       }
       return _results;
     };
 
-    Line.prototype.insertSlots = function() {
-      return this.timeline.slots = this.timeline.slots.concat(this.calculateSlots());
+    Line.prototype.insertSlotsAndLockers = function() {
+      var calculated;
+      calculated = this.calculateSlotsAndLockers();
+      this.timeline.slots = this.timeline.slots.concat(calculated.slots);
+      return this.timeline.lockers = this.timeline.lockers.concat(calculated.lockers);
     };
 
-    Line.prototype.calculateSlots = function() {
-      var duration, from, offset, range, rule, slots, step, to, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
+    Line.prototype.calculateSlotsAndLockers = function() {
+      var duration, from, lockers, offset, pattern, range, rangeSlot, rule, slots, step, to, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
       slots = [];
+      lockers = [];
+      pattern = {
+        groupId: this.raw.groupId,
+        lineId: this.raw.id
+      };
       if (this.raw.restrictSlotsTo != null) {
         _ref = this.raw.restrictSlotsTo;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -2405,17 +2426,35 @@
             } else {
               from = (Math.floor(range.raw.from / step) - 1) * step + offset % step;
             }
+            rangeSlot = null;
             while (from < range.raw.to) {
               to = from + duration;
               if (from < range.raw.to && to > range.raw.from) {
-                slots.push(this.timeline.createElement('Slot', {
+                slots.push(rangeSlot = this.timeline.createElement('Slot', $.extend({}, pattern, {
                   from: Math.max(from, range.raw.from),
-                  to: Math.min(to, range.raw.to),
-                  groupId: this.raw.groupId,
-                  lineId: this.raw.id
-                }));
+                  to: Math.min(to, range.raw.to)
+                })));
               }
               from += step;
+            }
+            if (rangeSlot) {
+              if (rangeSlot.raw.from > range.raw.from) {
+                lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
+                  from: range.raw.from,
+                  to: rangeSlot.raw.from
+                })));
+              }
+              if (rangeSlot.raw.to < range.raw.to) {
+                lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
+                  from: rangeSlot.raw.to,
+                  to: range.raw.to
+                })));
+              }
+            } else {
+              lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
+                from: range.raw.from,
+                to: range.raw.to
+              })));
             }
           }
         }
@@ -2423,15 +2462,16 @@
         _ref4 = this.timeline.ranges;
         for (_k = 0, _len2 = _ref4.length; _k < _len2; _k++) {
           range = _ref4[_k];
-          slots.push(this.timeline.createElement('Slot', {
+          slots.push(this.timeline.createElement('Slot', $.extend({}, pattern, {
             from: range.raw.from,
-            to: range.raw.to,
-            groupId: this.raw.groupId,
-            lineId: this.raw.id
-          }));
+            to: range.raw.to
+          })));
         }
       }
-      return slots;
+      return {
+        slots: slots,
+        lockers: lockers
+      };
     };
 
     return Line;
@@ -2446,7 +2486,7 @@
     }
 
     Slot.prototype.getClassName = function() {
-      return 'Slot';
+      return 'slot';
     };
 
     Slot.prototype.getLine = function() {
@@ -2493,6 +2533,64 @@
     };
 
     return Slot;
+
+  })(TL.Element);
+
+  TL.Element.Locker = (function(_super) {
+    __extends(Locker, _super);
+
+    function Locker() {
+      return Locker.__super__.constructor.apply(this, arguments);
+    }
+
+    Locker.prototype.getClassName = function() {
+      return 'locker';
+    };
+
+    Locker.prototype.getLine = function() {
+      return this.timeline.getLineById(this.raw.lineId);
+    };
+
+    Locker.prototype.getGroup = function() {
+      return this.timeline.getGroupById(this.raw.groupId);
+    };
+
+    Locker.prototype.createViews = function() {
+      return this.createView('default', this.getGroup().getView());
+    };
+
+    Locker.prototype.createViewDom = function(parent) {
+      return TL.Misc.addDom('locker', parent.$dom);
+    };
+
+    Locker.prototype.renderDefault = function(view) {
+      this.fillDefault(view);
+      return this.placeDefault(view);
+    };
+
+    Locker.prototype.fillDefault = function(view) {
+      return this.lookupProperty('fillDefault').call(this, view);
+    };
+
+    Locker.fillDefault = function(view) {};
+
+    Locker.prototype.placeDefault = function(view) {
+      return this.lookupProperty('placeDefault').call(this, view);
+    };
+
+    Locker.placeDefault = function(view) {
+      var line, offset;
+      line = this.getLine();
+      offset = this.timeline.getOffset(this.raw.from);
+      return view.$dom.css({
+        top: line.getVerticalOffset() + line.getInternalVerticalOffset(),
+        height: line.getInnerHeight(),
+        left: offset,
+        width: this.timeline.getOffset(this.raw.to - 1) - offset
+      });
+    };
+
+    return Locker;
 
   })(TL.Element);
 

@@ -124,6 +124,9 @@
 .tl-root .tl-field .tl-group .tl-slot {
   position: absolute;
 }
+.tl-root .tl-field .tl-group .tl-locker {
+  position: absolute;
+}
 .tl-root .tl-item-details {
   position: absolute;
   z-index: 1000;

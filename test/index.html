@@ -57,6 +57,18 @@
 	    					}
 	    				}
 	    			},
+	    			locker: {
+	    				placeDefault: function(view){
+	    					TL.Element.Locker.placeDefault.call(this, view);
+	    					if (this.timeline.getDashRuleById('half-hour').hasDashAtTime(this.raw.from)) {
+	    						offset = this.timeline.getOffset(this.raw.from) + 1; 
+	    						view.$dom.css({
+	    							left: offset,
+	    							width: this.timeline.getOffset(this.raw.to - 1) - offset
+	    						});
+	    					}
+	    				}
+	    			},
 	    			sidebar: {width: 170},
 	    			ruler: {height: 53},
 	    			timezone: 'UTC',
@@ -118,7 +130,14 @@
 	    						step: TL.day
 	    					}
 	    				]},
-	    				{id: 'post:2', groupId: 'posts', height: 68, order: 2, html: '<br><strong>Подъёмник 2</strong><br>80%'},
+	    				{id: 'post:2', groupId: 'posts', height: 68, order: 2, html: '<br><strong>Подъёмник 2</strong><br>80%', restrictSlotsTo: [
+	    					{
+	    						// Доступно каждый день с 12-ти утра в течении 8-х часов
+	    						offset: moment.tz('12', 'HH', 'UTC').unix(),
+	    						duration: 8 * TL.hour,
+	    						step: TL.day
+	    					}
+	    				]},
 	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%'},
 	    				{id: 'post:4', groupId: 'posts', height: 68, order: 4, html: '<br><strong>Подъёмник 4</strong><br>80%'},
 	    				{id: 'post:5', groupId: 'posts', height: 68, order: 5, html: '<br><strong>Подъёмник 5</strong><br>80%'},

@@ -174,6 +174,7 @@ class TL.Timeline extends TL.EventEmitter
 		@ranges = []
 		@lines = []
 		@slots = []
+		@lockers = []
 		@dashRules = []
 		@dashes = []
 		@items = []
@@ -211,6 +212,7 @@ class TL.Timeline extends TL.EventEmitter
 			range.render() for range in @ranges
 			line.render() for line in @lines
 			slot.render() for slot in @slots
+			locker.render() for locker in @lockers
 			dash.render() for dash in @dashes
 			item.render() for item in @items
 			@now.render()
@@ -1321,7 +1323,7 @@ class TL.Element.Dash extends TL.Element
 
 class TL.Element.Line extends TL.Element
 	init: ->
-		@insertSlots()
+		@insertSlotsAndLockers()
 
 	getClassName: ->
 		'line'
@@ -1396,14 +1398,22 @@ class TL.Element.Line extends TL.Element
 			top: @getVerticalOffset()
 			height: @getInnerHeight()
 
-	removeSlots: ->
+	removeSlotsAndLockers: ->
 		slots.remove() for slot in @timeline.slots when @raw.id is slot.raw.lineId
+		lockers.remove() for locker in @timeline.lockers when @raw.id is locker.raw.lineId
 
-	insertSlots: ->
-		@timeline.slots = @timeline.slots.concat @calculateSlots()
+	insertSlotsAndLockers: ->
+		calculated = @calculateSlotsAndLockers()
+		@timeline.slots = @timeline.slots.concat calculated.slots
+		@timeline.lockers = @timeline.lockers.concat calculated.lockers
 
-	calculateSlots: ->
+	calculateSlotsAndLockers: ->
 		slots = []
+		lockers = []
+		pattern =
+			groupId: @raw.groupId
+			lineId: @raw.id
+
 		if @raw.restrictSlotsTo?
 			for rule in @raw.restrictSlotsTo
 				step = rule.step ? Infinity
@@ -1416,29 +1426,41 @@ class TL.Element.Line extends TL.Element
 					else
 						from = (Math.floor(range.raw.from / step) - 1) * step + offset % step
 
+					rangeSlot = null
+
 					while from < range.raw.to
 						to = from + duration
 						if from < range.raw.to and to > range.raw.from 
-							slots.push @timeline.createElement 'Slot',
+							slots.push rangeSlot = @timeline.createElement 'Slot', $.extend {}, pattern,
 								from: Math.max from, range.raw.from
 								to: Math.min to, range.raw.to
-								groupId: @raw.groupId
-								lineId: @raw.id
 
 						from += step
+
+					if rangeSlot
+						if rangeSlot.raw.from > range.raw.from  
+							lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
+								from: range.raw.from
+								to: rangeSlot.raw.from
+						if rangeSlot.raw.to < range.raw.to  
+							lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
+								from: rangeSlot.raw.to
+								to: range.raw.to
+					else 
+						lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
+							from: range.raw.from
+							to: range.raw.to
 		else
 			for range in @timeline.ranges
-				slots.push @timeline.createElement 'Slot',
+				slots.push @timeline.createElement 'Slot', $.extend {}, pattern,
 					from: range.raw.from
 					to: range.raw.to
-					groupId: @raw.groupId
-					lineId: @raw.id
 
-		slots
+		{slots, lockers}
 
 class TL.Element.Slot extends TL.Element
 	getClassName: ->
-		'Slot'
+		'slot'
 
 	getLine: ->
 		@timeline.getLineById @raw.lineId
@@ -1451,6 +1473,43 @@ class TL.Element.Slot extends TL.Element
 
 	createViewDom: (parent)->
 		TL.Misc.addDom 'slot', parent.$dom
+
+	renderDefault: (view)->
+		@fillDefault view
+		@placeDefault view
+
+	fillDefault: (view)->
+		@lookupProperty('fillDefault').call @, view
+
+	@fillDefault: (view)->
+
+	placeDefault: (view)->
+		@lookupProperty('placeDefault').call @, view
+
+	@placeDefault: (view)->
+		line = @getLine()
+		offset = @timeline.getOffset @raw.from
+		view.$dom.css
+			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
+			height: line.getInnerHeight()
+			left: offset
+			width: @timeline.getOffset(@raw.to-1) - offset
+
+class TL.Element.Locker extends TL.Element
+	getClassName: ->
+		'locker'
+
+	getLine: ->
+		@timeline.getLineById @raw.lineId
+
+	getGroup: ->
+		@timeline.getGroupById @raw.groupId
+
+	createViews: ->
+		@createView 'default', @getGroup().getView()
+
+	createViewDom: (parent)->
+		TL.Misc.addDom 'locker', parent.$dom
 
 	renderDefault: (view)->
 		@fillDefault view
