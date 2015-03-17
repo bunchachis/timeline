@@ -1524,30 +1524,24 @@ class TL.Element.Line extends TL.Element
 					else
 						from = (Math.floor(range.raw.from / step) - 1) * step + offset % step
 
-					rangeSlot = null
-
 					while from < range.raw.to
 						to = from + duration
 						if from < range.raw.to and to > range.raw.from 
-							slots.push rangeSlot = @timeline.createElement 'Slot', $.extend {}, pattern,
+							slots.push @timeline.createElement 'Slot', $.extend {}, pattern,
 								from: Math.max from, range.raw.from
 								to: Math.min to, range.raw.to
 
 						from += step
 
-					if rangeSlot
-						if rangeSlot.raw.from > range.raw.from  
-							lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
-								from: range.raw.from
-								to: rangeSlot.raw.from
-						if rangeSlot.raw.to < range.raw.to  
-							lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
-								from: rangeSlot.raw.to
-								to: range.raw.to
-					else 
-						lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
-							from: range.raw.from
-							to: range.raw.to
+			set = new TL.RangeSet
+			for range in @timeline.ranges
+				set = set.add new TL.Range range.raw.from, range.raw.to 
+			for slot in slots
+				set = set.subtract new TL.Range slot.raw.from, slot.raw.to
+			for range in set.ranges
+				lockers.push @timeline.createElement 'Locker', $.extend {}, pattern,
+					from: range.from
+					to: range.to
 		else
 			for range in @timeline.ranges
 				slots.push @timeline.createElement 'Slot', $.extend {}, pattern,

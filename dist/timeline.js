@@ -2573,7 +2573,7 @@
     };
 
     Line.prototype.calculateSlotsAndLockers = function() {
-      var duration, from, lockers, offset, pattern, range, rangeSlot, rule, slots, step, to, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4;
+      var duration, from, lockers, offset, pattern, range, rule, set, slot, slots, step, to, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _m, _n, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6;
       slots = [];
       lockers = [];
       pattern = {
@@ -2595,42 +2595,40 @@
             } else {
               from = (Math.floor(range.raw.from / step) - 1) * step + offset % step;
             }
-            rangeSlot = null;
             while (from < range.raw.to) {
               to = from + duration;
               if (from < range.raw.to && to > range.raw.from) {
-                slots.push(rangeSlot = this.timeline.createElement('Slot', $.extend({}, pattern, {
+                slots.push(this.timeline.createElement('Slot', $.extend({}, pattern, {
                   from: Math.max(from, range.raw.from),
                   to: Math.min(to, range.raw.to)
                 })));
               }
               from += step;
             }
-            if (rangeSlot) {
-              if (rangeSlot.raw.from > range.raw.from) {
-                lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
-                  from: range.raw.from,
-                  to: rangeSlot.raw.from
-                })));
-              }
-              if (rangeSlot.raw.to < range.raw.to) {
-                lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
-                  from: rangeSlot.raw.to,
-                  to: range.raw.to
-                })));
-              }
-            } else {
-              lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
-                from: range.raw.from,
-                to: range.raw.to
-              })));
-            }
           }
         }
-      } else {
+        set = new TL.RangeSet;
         _ref4 = this.timeline.ranges;
         for (_k = 0, _len2 = _ref4.length; _k < _len2; _k++) {
           range = _ref4[_k];
+          set = set.add(new TL.Range(range.raw.from, range.raw.to));
+        }
+        for (_l = 0, _len3 = slots.length; _l < _len3; _l++) {
+          slot = slots[_l];
+          set = set.subtract(new TL.Range(slot.raw.from, slot.raw.to));
+        }
+        _ref5 = set.ranges;
+        for (_m = 0, _len4 = _ref5.length; _m < _len4; _m++) {
+          range = _ref5[_m];
+          lockers.push(this.timeline.createElement('Locker', $.extend({}, pattern, {
+            from: range.from,
+            to: range.to
+          })));
+        }
+      } else {
+        _ref6 = this.timeline.ranges;
+        for (_n = 0, _len5 = _ref6.length; _n < _len5; _n++) {
+          range = _ref6[_n];
           slots.push(this.timeline.createElement('Slot', $.extend({}, pattern, {
             from: range.raw.from,
             to: range.raw.to
