@@ -1298,6 +1298,175 @@
 
   })();
 
+  TL.Range = (function() {
+    function Range(from, to) {
+      if (this instanceof TL.Range) {
+        this.from = from;
+        this.to = to;
+        if (this.to <= this.from) {
+          throw 'End of range must be greater than it\'s start';
+        }
+      } else {
+        return (function(func, args, ctor) {
+          ctor.prototype = func.prototype;
+          var child = new ctor, result = func.apply(child, args);
+          return Object(result) === result ? result : child;
+        })(TL.Range, arguments, function(){});
+      }
+    }
+
+    Range.prototype.format = function() {
+      return '[' + (this.from === -Infinity ? '-∞' : this.from) + '; ' + (this.to === Infinity ? '∞' : this.to) + ')';
+    };
+
+    Range.prototype.toString = function() {
+      return this.format();
+    };
+
+    Range.prototype.subtract = function(range) {
+      var _ref, _ref1;
+      if (range instanceof TL.Range) {
+        if (range.from <= this.from && range.to >= this.to) {
+          return null;
+        } else if (range.from > this.from && range.to < this.to) {
+          return new TL.RangeSet([new TL.Range(this.from, range.from), new TL.Range(range.to, this.to)], true);
+        } else if ((range.from <= (_ref = this.from) && _ref < range.to)) {
+          return new TL.Range(range.to, this.to);
+        } else if ((range.from < (_ref1 = this.to) && _ref1 <= range.to)) {
+          return new TL.Range(this.from, range.from);
+        } else {
+          return this;
+        }
+      }
+    };
+
+    Range.prototype.add = function(range) {
+      if (range instanceof TL.Range) {
+        if (range.from <= this.from && range.to >= this.to) {
+          return range;
+        } else if (range.from >= this.from && range.to <= this.to) {
+          return this;
+        } else if (range.from <= this.to && range.to >= this.from) {
+          return new TL.Range(Math.min(this.from, range.from), Math.max(this.to, range.to));
+        } else {
+          if (range.from < this.from) {
+            return new TL.RangeSet([range, this], true);
+          } else {
+            return new TL.RangeSet([this, range], true);
+          }
+        }
+      }
+    };
+
+    return Range;
+
+  })();
+
+  TL.RangeSet = (function() {
+    function RangeSet(ranges, normalized) {
+      if (normalized == null) {
+        normalized = false;
+      }
+      if (this instanceof TL.RangeSet) {
+        this.ranges = ranges || [];
+        if (!normalized && this.ranges.length) {
+          this.normalize();
+        }
+      } else {
+        return (function(func, args, ctor) {
+          ctor.prototype = func.prototype;
+          var child = new ctor, result = func.apply(child, args);
+          return Object(result) === result ? result : child;
+        })(TL.RangeSet, arguments, function(){});
+      }
+    }
+
+    RangeSet.prototype.format = function() {
+      return this.ranges.map(function(range) {
+        return range.format();
+      }).join(' ∨ ');
+    };
+
+    RangeSet.prototype.toString = function() {
+      return this.format();
+    };
+
+    RangeSet.prototype.normalize = function() {
+      this.sort();
+      return this.reduce();
+    };
+
+    RangeSet.prototype.sort = function() {
+      return this.ranges = this.ranges.sort(function(a, b) {
+        return a.from - b.from;
+      });
+    };
+
+    RangeSet.prototype.reduce = function() {
+      var accum, range, reduced, _i, _len, _ref;
+      reduced = [];
+      accum = null;
+      _ref = this.ranges;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        range = _ref[_i];
+        if (accum != null) {
+          accum = accum.add(range);
+          if (accum instanceof TL.RangeSet) {
+            reduced.push(accum.ranges[0]);
+            accum = accum.ranges[1];
+          }
+        } else {
+          accum = range;
+        }
+      }
+      if (accum != null) {
+        reduced.push(accum);
+      }
+      return this.ranges = reduced;
+    };
+
+    RangeSet.prototype.merge = function(obj) {
+      if (obj != null) {
+        if (obj instanceof TL.RangeSet) {
+          return this.ranges = this.ranges.concat(obj.ranges);
+        } else if (obj instanceof TL.Range) {
+          return this.ranges.push(obj);
+        } else if (obj instanceof Array) {
+          return this.ranges = this.ranges.concat(obj);
+        }
+      }
+    };
+
+    RangeSet.prototype.add = function(set) {
+      if (set instanceof TL.Range) {
+        set = new TL.RangeSet([set], true);
+      }
+      return new TL.RangeSet(this.ranges.concat(set.ranges));
+    };
+
+    RangeSet.prototype.subtract = function(set) {
+      var inRange, range, ranges, result, _i, _j, _len, _len1, _ref;
+      if (set instanceof TL.Range) {
+        set = new TL.RangeSet([set], true);
+      }
+      result = new TL.RangeSet(this.ranges, true);
+      _ref = set.ranges;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        inRange = _ref[_i];
+        ranges = result.ranges;
+        result.ranges = [];
+        for (_j = 0, _len1 = ranges.length; _j < _len1; _j++) {
+          range = ranges[_j];
+          result.merge(range.subtract(inRange));
+        }
+      }
+      return result;
+    };
+
+    return RangeSet;
+
+  })();
+
   TL.registry = new (Registry = (function() {
     function Registry() {
       this.map = {};

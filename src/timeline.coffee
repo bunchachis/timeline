@@ -785,6 +785,104 @@ class TL.Misc
 		else 
 			containerEnd - thisSize
 
+class TL.Range
+	constructor: (from, to)->
+		if @ instanceof TL.Range
+			@from = from
+			@to = to
+			throw 'End of range must be greater than it\'s start' if @to <= @from
+		else
+			return new TL.Range arguments...
+
+	format: -> '[' + (if @from is -Infinity then '-∞' else @from) + '; ' + (if @to is Infinity then '∞' else @to) + ')'
+
+	toString: -> @format()
+	
+	subtract: (range)->
+		if range instanceof TL.Range
+			if range.from <= @from and range.to >= @to # covers
+				null
+			else if range.from > @from and range.to < @to # inside
+				new TL.RangeSet [new TL.Range(@from, range.from), new TL.Range(range.to, @to)], true
+			else if range.from <= @from < range.to # left overlap
+				new TL.Range range.to, @to
+			else if range.from < @to <= range.to # right overlap
+				new TL.Range @from, range.from
+			else # outside
+				@
+
+	add: (range)->
+		if range instanceof TL.Range
+			if range.from <= @from and range.to >= @to # covers
+				range
+			else if range.from >= @from and range.to <= @to # inside
+				@
+			else if range.from <= @to and range.to >= @from # overlap
+				new TL.Range Math.min(@from, range.from), Math.max(@to, range.to)
+			else # outside
+				if range.from < @from
+					new TL.RangeSet [range, @], true
+				else
+					new TL.RangeSet [@, range], true
+
+class TL.RangeSet
+	constructor: (ranges, normalized = false)->
+		if @ instanceof TL.RangeSet
+			@ranges = ranges or []
+			@normalize() if !normalized and @ranges.length
+		else
+			return new TL.RangeSet arguments...
+
+	format: -> @ranges.map((range)-> range.format()).join(' ∨ ')
+
+	toString: -> @format()
+
+	normalize: ->
+		@sort()
+		@reduce()
+
+	sort: ->
+		@ranges = @ranges.sort (a, b)->
+			a.from - b.from
+
+	reduce: ->
+		reduced = []
+		accum = null
+		for range in @ranges
+			if accum?
+				accum = accum.add range
+				if accum instanceof TL.RangeSet
+					reduced.push accum.ranges[0]
+					accum = accum.ranges[1]
+			else
+				accum = range
+
+		reduced.push accum if accum?
+		@ranges = reduced
+
+	merge: (obj)->
+		if obj?
+			if obj instanceof TL.RangeSet
+				@ranges = @ranges.concat obj.ranges
+			else if obj instanceof TL.Range
+				@ranges.push obj
+			else if obj instanceof Array
+				@ranges = @ranges.concat obj
+
+	add: (set)->
+		set = new TL.RangeSet [set], true if set instanceof TL.Range
+		new TL.RangeSet @ranges.concat set.ranges
+
+	subtract: (set)->
+		set = new TL.RangeSet [set], true if set instanceof TL.Range
+		result = new TL.RangeSet @ranges, true
+		for inRange in set.ranges
+			ranges = result.ranges
+			result.ranges = []
+			for range in ranges
+				result.merge range.subtract inRange
+		result
+
 TL.registry = new class Registry
 	constructor: ->
 		@map = {}
