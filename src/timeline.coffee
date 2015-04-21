@@ -98,6 +98,7 @@ class TL.Sized
 	getSize: (type, axis)->
 		@['get' + type + axis]()
 
+
 	calcSize: (axis)->
 		verb = @['getRaw' + axis]()
 		isString = $.type(verb) is 'string'
@@ -1700,6 +1701,7 @@ class TL.Element.Item extends TL.Element
 
 			@detailsOutsideHandler = (e)=>
 				@hideDetails() unless TL.Misc.isOrParentOf @getView('details').$dom, e.target
+
 			$('body').on 'mousedown', @detailsOutsideHandler
 
 	hideDetails: ->
@@ -1753,13 +1755,13 @@ class TL.Element.Item extends TL.Element
 				holdPos = 
 					left: e.pageX - domOffset.left
 					top: e.pageY - domOffset.top
-				@timeline.fireEvent 'item:drag:start', item: @
+				@timeline.fireEvent TL.Element.Events.Drag.START, item: @
 			stop: (e, ui)=>
 				$dragHint.remove()
 				$dragHint = null
 				modified = null
 				holdPos = null
-				@timeline.fireEvent 'item:drag:stop', item: @
+				@timeline.fireEvent TL.Element.Events.Drag.STOP, item: @
 			drag: (e, ui)=>
 				group = @getLine().getGroup()
 				parentOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
@@ -2059,3 +2061,10 @@ class TL.Element.Now extends TL.Element
 			view.$dom.show().css left: offset
 		else 
 			view.$dom.hide()
+
+TL.Element.Events = {
+	Drag: {
+		START: 'item:drag:start',
+		STOP: 'item:drag:stop',
+	}
+}
