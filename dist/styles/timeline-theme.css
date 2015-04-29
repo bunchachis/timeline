@@ -61,7 +61,6 @@
 .tl-root .tl-ruler .tl-dash {
   width: 1px;
   height: 10px;
-  background: #808080;
 }
 .tl-root .tl-ruler .tl-dash .tl-text {
   display: none;
@@ -69,9 +68,6 @@
   margin-top: -15px;
   font-size: 11px;
   line-height: 14px;
-}
-.tl-root .tl-ruler .tl-dash.id-10-mins {
-  height: 5px;
 }
 .tl-root .tl-ruler .tl-dash.id-hour .tl-text {
   display: block;
@@ -90,6 +86,7 @@
 }
 .tl-root .tl-ruler .tl-range {
   border-right: 5px solid #c7c7c7;
+  background: url('../../src/img/ruler-dashes.png') repeat-x left bottom;
 }
 .tl-root .tl-ruler .tl-range .tl-heading {
   text-align: center;
@@ -109,10 +106,12 @@
 }
 .tl-root .tl-field .tl-group .tl-line {
   z-index: 1;
+  border-bottom: 1px solid #c7c7c7;
 }
 .tl-root .tl-field .tl-group .tl-range {
   z-index: 1;
   border-right: 5px solid #c7c7c7;
+  background: url('../../src/img/dashes.png') repeat left top;
 }
 .tl-root .tl-field .tl-group .tl-dash {
   z-index: 5;
@@ -163,7 +162,6 @@
 }
 .tl-root .tl-field .tl-group .tl-slot {
   z-index: 3;
-  background-color: #ffffff;
 }
 .tl-root .tl-field .tl-group .tl-locker {
   z-index: 6;

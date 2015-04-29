@@ -349,6 +349,8 @@ class TL.Timeline extends TL.EventEmitter
 		dash:
 			fillDefault: null
 			placeDefault: null
+			isVisibleAtGroups: true
+			isVisibleAtRuler: true
 		scale: 1
 		timezone: 'UTC'
 		snapResolution: 1
@@ -1378,8 +1380,10 @@ class TL.Element.Dash extends TL.Element
 		@timeline.getDashRuleById @raw.ruleId
 
 	createViews: ->
-		@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
-		@createView 'atRuler', @timeline.ruler.getView()
+		if @lookupProperty 'isVisibleAtGroups', true
+			@createView 'default', group.getView(), "group=#{group.raw.id}" for group in @timeline.groups
+		if @lookupProperty 'isVisibleAtRuler', true
+			@createView 'atRuler', @timeline.ruler.getView()
 
 	createViewDom: (parent)->
 		TL.Misc.addDom('dash', parent.$dom).addClass "id-#{@raw.ruleId}"
@@ -1987,7 +1991,7 @@ class TL.Element.DashRule
 
 			while time < range.raw.to
 				if time >= range.raw.from and !@isTimeExcluded time
-					dashes.push @timeline.createElement 'Dash', {time, ruleId: @raw.id}
+					dashes.push @timeline.createElement 'Dash', {time, ruleId: @raw.id, isVisibleAtGroups: @raw.isVisibleAtGroups, isVisibleAtRuler: @raw.isVisibleAtRuler}
 				time += step
 
 		dashes

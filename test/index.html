@@ -41,9 +41,15 @@
 	    			range: {
 	    				extraOffsetAfter: 5,
 	    				fillAtRuler: function(view){
+	    					var offset = -moment.unix(this.raw.from).tz('UTC').minutes() / 10 * 12;
+	    					view.$dom.css('background-position', offset + 'px bottom');
 	    					view.$dom.children('.tl-text').remove()
 	    					view.$dom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
-	    				}
+	    				},
+	    				fillDefault: function(view){
+	    					var offset = -moment.unix(this.raw.from).tz('UTC').minutes() / 10 * 12;
+	    					view.$dom.css('background-position', offset + 'px top');
+	    				},
 	    			},
 	    			item: {
 	    				placeDefault: function(view){
@@ -75,15 +81,14 @@
 	    			scale: 10 * TL.minute / 12, // 10 mins per 12 px
 	    			snapResolution: 5 * TL.minute,
 					dashRules: [
-						{id: '0800', step: TL.day, offset: 8 * TL.hour},
-						{id: 'hour', step: TL.hour, exclude: ['0800']},
-						{id: 'half-hour', step: TL.hour / 2, exclude: ['hour']},
-						{id: '10-mins', step: 10 * TL.minute, exclude: ['half-hour']},
+						{id: '0800', step: TL.day, offset: 8 * TL.hour, isVisibleAtGroups: false},
+						{id: 'hour', step: TL.hour, exclude: ['0800'], isVisibleAtGroups: false},
+						{id: 'half-hour', step: TL.hour / 2, exclude: ['hour'], isVisibleAtGroups: false, isVisibleAtRuler: false},
 					],
 
 	    			ranges: [
 	    				{
-							from: moment.tz('01.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							from: moment.tz('01.11.2014 07:05:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('01.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix()
 						},
 						{
@@ -105,8 +110,63 @@
 						{
 							from: moment.tz('06.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('06.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
-							extraOffsetAfter: 0
-	    				}
+	    				},
+	    				{
+							from: moment.tz('07.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('07.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('08.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('08.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('09.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('09.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('10.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('10.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('11.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('11.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('12.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('12.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('13.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('13.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('14.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('14.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('15.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('15.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('16.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('16.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('17.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('17.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('18.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('18.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('19.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('19.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('20.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('20.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
 	    			],
 	    			groups: [
 	    				{id: 'users', height: 'auto'},
@@ -138,7 +198,12 @@
 	    						step: TL.day
 	    					}
 	    				]},
-	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%'},
+	    				{id: 'post:3', groupId: 'posts', height: 68, order: 3, html: '<br><strong>Подъёмник 3</strong><br>80%', restrictSlotsTo: [
+	    					{
+	    						offset: moment.tz('01.11.2014 01:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    						duration: 2 * TL.day
+	    					}
+	    				]},
 	    				{id: 'post:4', groupId: 'posts', height: 68, order: 4, html: '<br><strong>Подъёмник 4</strong><br>80%'},
 	    				{id: 'post:5', groupId: 'posts', height: 68, order: 5, html: '<br><strong>Подъёмник 5</strong><br>80%'},
 	    				{id: 'post:6', groupId: 'posts', height: 68, order: 6, html: '<br><strong>Подъёмник 6</strong><br>80%'},

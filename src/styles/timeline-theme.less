@@ -80,7 +80,6 @@
     .tl-dash {
       width: 1px;
       height: 10px;
-      background: #808080;
 
       .tl-text {
         display: none;
@@ -88,10 +87,6 @@
         margin-top: -15px;    
         font-size: 11px;
         line-height: 14px;
-      }
-
-      &.id-10-mins {
-        height: 5px;
       }
 
       &.id-hour .tl-text {
@@ -115,6 +110,7 @@
 
     .tl-range {
       border-right: 5px solid #c7c7c7;
+      background: url('../../src/img/ruler-dashes.png') repeat-x left bottom;
 
       .tl-heading {
         text-align: center;
@@ -137,11 +133,13 @@
 
       .tl-line {
         z-index: 1;
+        border-bottom: 1px solid #c7c7c7;
       }
 
       .tl-range {
         z-index: 1;
         border-right: 5px solid #c7c7c7;
+        background: url('../../src/img/dashes.png') repeat left top;
       }
 
       .tl-dash {
@@ -189,7 +187,6 @@
 
       .tl-slot {
         z-index: 3;
-        background-color: #ffffff;
       }
 
       .tl-locker {
