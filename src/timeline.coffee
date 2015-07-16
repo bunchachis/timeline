@@ -1532,7 +1532,7 @@ class TL.Element.Line extends TL.Element
 					while from < range.raw.to
 						to = from + duration
 						if from < range.raw.to and to > range.raw.from 
-							slots.push @timeline.createElement 'Slot', $.extend {}, pattern,
+							slots.push @timeline.createElement 'Slot', $.extend {}, pattern, rule,
 								from: Math.max from, range.raw.from
 								to: Math.min to, range.raw.to
 
