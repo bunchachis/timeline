@@ -899,21 +899,25 @@
     };
 
     InteractiveCreationMode.prototype.activateStateSetBeginning = function() {
-      var fieldOffset;
-      fieldOffset = TL.Misc.getScrollContainer(this.timeline.field.getView().$dom).offset();
       this.moveHandler = (function(_this) {
         return function(e) {
-          var group, groupOffset, mouseInfo, ref;
+          var group, groupOffset, mouseInfo, mouseTime, ref;
           group = $(e.target).parents('.tl-group').data('timeline-host-object');
           mouseInfo = {
             event: e
           };
           if ((group != null) && ((_this.restrictGroupsIds == null) || (ref = group.raw.id, indexOf.call(_this.restrictGroupsIds, ref) >= 0))) {
             groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset();
-            mouseInfo.group = group;
-            mouseInfo.parentOffset = groupOffset;
+            mouseTime = _this.timeline.getTime(e.pageX - groupOffset.left);
             _this.line = _this.timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top);
-            _this.from = _this.timeline.approxTime(_this.timeline.getTime(e.pageX - groupOffset.left));
+            _this.from = _this.timeline.approxTime(mouseTime);
+            mouseInfo.time = mouseTime;
+            mouseInfo.group = group;
+            mouseInfo.line = _this.line;
+            if (_this.line != null) {
+              mouseInfo.slot = _this.timeline.getSlotByLineIdAndTime(_this.line.raw.id, mouseTime);
+            }
+            mouseInfo.parentOffset = groupOffset;
           } else {
             _this.line = null;
             _this.from = null;
@@ -959,8 +963,6 @@
     };
 
     InteractiveCreationMode.prototype.activateStateSetEnding = function() {
-      var fieldOffset;
-      fieldOffset = TL.Misc.getScrollContainer(this.timeline.field.getView().$dom).offset();
       this.moveHandler = (function(_this) {
         return function(e) {
           var group, groupOffset, mouseInfo, mouseTime;
@@ -970,10 +972,16 @@
           };
           if (group != null) {
             groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset();
-            mouseInfo.group = group;
-            mouseInfo.parentOffset = groupOffset;
             mouseTime = _this.timeline.getTime(e.pageX - groupOffset.left);
+            _this.line = _this.timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top);
             _this.to = _this.timeline.approxTime(mouseTime, true);
+            mouseInfo.time = mouseTime;
+            mouseInfo.group = group;
+            mouseInfo.line = _this.line;
+            if (_this.line != null) {
+              mouseInfo.slot = _this.timeline.getSlotByLineIdAndTime(_this.line.raw.id, mouseTime);
+            }
+            mouseInfo.parentOffset = groupOffset;
           } else {
             _this.to = null;
           }
@@ -2604,7 +2612,7 @@
             while (from < range.raw.to) {
               to = from + duration;
               if (from < range.raw.to && to > range.raw.from) {
-                slots.push(this.timeline.createElement('Slot', $.extend({}, pattern, rule, {
+                slots.push(this.timeline.createElement('Slot', $.extend({}, pattern, {
                   from: Math.max(from, range.raw.from),
                   to: Math.min(to, range.raw.to)
                 })));

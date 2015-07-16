@@ -527,16 +527,19 @@ class TL.InteractiveCreationMode
 		@stateName = null
 
 	activateStateSetBeginning: ->
-		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.getView().$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group? and (!@restrictGroupsIds? or group.raw.id in @restrictGroupsIds)
 				groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
-				mouseInfo.group = group
-				mouseInfo.parentOffset = groupOffset
+				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
 				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
-				@from = @timeline.approxTime @timeline.getTime(e.pageX - groupOffset.left)
+				@from = @timeline.approxTime mouseTime
+				mouseInfo.time = mouseTime
+				mouseInfo.group = group
+				mouseInfo.line = @line
+				mouseInfo.slot = @timeline.getSlotByLineIdAndTime @line.raw.id, mouseTime if @line?
+				mouseInfo.parentOffset = groupOffset
 			else
 				@line = null
 				@from = null
@@ -573,16 +576,19 @@ class TL.InteractiveCreationMode
 		@clickHandler = null
 
 	activateStateSetEnding: ->
-		fieldOffset = TL.Misc.getScrollContainer(@timeline.field.getView().$dom).offset()
 		@moveHandler = (e)=>
 			group = $(e.target).parents('.tl-group').data('timeline-host-object')
 			mouseInfo = event: e
 			if group?
 				groupOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset()
-				mouseInfo.group = group
-				mouseInfo.parentOffset = groupOffset
 				mouseTime = @timeline.getTime(e.pageX - groupOffset.left)
+				@line = @timeline.getLineByVerticalOffset(group, e.pageY - groupOffset.top)
 				@to = @timeline.approxTime mouseTime, yes
+				mouseInfo.time = mouseTime
+				mouseInfo.group = group
+				mouseInfo.line = @line
+				mouseInfo.slot = @timeline.getSlotByLineIdAndTime @line.raw.id, mouseTime if @line?
+				mouseInfo.parentOffset = groupOffset
 			else
 				@to = null
 
