@@ -95,44 +95,109 @@ class TL.EventEmitter
 		if returnEvent then event else isOk
 
 class TL.Sized
+	init: ->
+		@sizeCache =
+			Height: {}
+			Width: {}
+
+	deinit: ->
+		delete @sizeCache
+
+	clearCache: (axis)->
+		@sizeCache[axis] = {}
+
 	getSize: (type, axis)->
 		@['get' + type + axis]()
 
+	getCalcedSize: (axis)->
+		@sizeCache[axis].size
 
-	calcSize: (axis)->
-		verb = @['getRaw' + axis]()
-		isString = $.type(verb) is 'string'
-		if verb is 'auto'
-			TL.Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements())
-		else if $.type(verb) is 'number'
-			verb
-		else if isString and verb.indexOf('px') > -1
-			parseInt verb 
-		else if isString and verb.indexOf('%') > -1 
-			percents = parseInt verb
-			parent = @getParentElement()
-			innerSpace = if parent? then parent.getSize 'Inner', axis else 0
+	calcSize: (axis) ->
+		@clearCache axis
+
+		rule = @getSizeRule axis
+		size = @calcSizeByRule axis, rule
+
+		maxRule = @getSizeRule axis, 'Max'
+		if maxRule? 
+			max = @calcSizeByRule axis, maxRule
+			if size > max
+				size = max
+				@sizeCache[axis].overridedRule = ['px', max]
+				@sizeCache[axis].size = size; 
+				@getParentElement().recalcPartialChildren axis
+
+		@sizeCache[axis].size = size;
+
+		child.calcSize axis for child in @getChildrenElements()
+
+	calcSizeByRule: (axis, rule)->
+		if !rule? or rule[0] is 'content'
+			child.calcSize axis for child in @getChildrenElements()
+			TL.Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements()) # lookdown
+		else if rule[0] is 'px'
+			rule[1] # implicit
+		else if rule[0] is '%' 
+			percents = rule[1]
+			parent = rule[2]
+			innerSpace = parent.getSize 'Inner', axis # look up
 
 			Math.round(innerSpace * percents / 100) -
 			@getExtraOffsetBefore() -
 			@getExtraOffsetAfter()
-		else if isString and verb.indexOf('part') > -1 
-			parts = parseInt verb
-			totalParts = 0
-			parent = @getParentElement()
-			remainingSpace = if parent? then parent.getSize 'Inner', axis else 0
-			if parent?
-				siblings = parent.getChildrenElements()
-				for sibling in siblings
-					siblingVerb = sibling.getSize 'Raw', axis
-					if $.type(siblingVerb) is 'string' and siblingVerb.indexOf('part') > -1
-						totalParts += parseInt siblingVerb 
-					else
-						remainingSpace -= sibling.getSize 'Outer', axis
-				
+		else if rule[0] is 'parts'
+			parts = rule[1]
+			parent = rule[2]
+			[totalParts, remainingSpace] = parent.getChildrenPartsAndRemaining axis
+
 			Math.round(remainingSpace * parts / totalParts) -
 			@getExtraOffsetBefore() -
 			@getExtraOffsetAfter()
+		else 0
+
+	recalcPartialChildren: (axis)->
+		for child in @getChildrenElements()
+			rule = child.getCurrentSizeRule axis
+			child.calcSize axis if rule?[0] is 'parts'
+				
+	getChildrenPartsAndRemaining: (axis)->
+		totalParts = 0
+		children = @getChildrenElements()
+		remainingSpace = @getSize 'Inner', axis
+		
+		for child in children
+			rule = child.getCurrentSizeRule axis
+			if rule?[0] is 'parts'
+				totalParts += rule[1]
+			else
+				remainingSpace -= child.getSize 'Outer', axis
+
+		[totalParts, remainingSpace]
+
+	getCurrentSizeRule: (axis)->
+		@sizeCache[axis].overridedRule ? @getSizeRule(axis)
+
+	getSizeRule: (axis, bound = '')->
+		verb = @['getRaw' + bound + axis]()
+		isString = $.type(verb) is 'string'
+		if verb is 'content'
+			['content']
+		else if $.type(verb) is 'number'
+			['px', verb]
+		else if isString and verb.indexOf('px') > -1
+			['px', parseInt verb]
+		else if isString and verb.indexOf('%') > -1 
+			parent = @getParentElement()
+			if parent? and parent.getCurrentSizeRule(axis)[0] isnt 'content'
+				['%', parseInt(verb), parent] # look up
+			else
+				['content'] # fallback to lookdown
+		else if isString and verb.indexOf('part') > -1 
+			parent = @getParentElement()
+			if parent? and parent.getCurrentSizeRule(axis)[0] isnt 'content'
+				['parts', parseInt(verb), parent] # look up
+			else 
+				['content'] # fallback to lookdown
 
 	getParentElement: ->
 
@@ -142,8 +207,10 @@ class TL.Sized
 	getRawHeight: ->
 		'auto'
 
+	getRawMaxHeight: ->
+
 	getInnerHeight: ->
-		@calcSize 'Height'
+		@getCalcedSize 'Height'
 
 	getOuterHeight: ->
 		@getInnerHeight() +
@@ -204,6 +271,7 @@ class TL.Timeline extends TL.EventEmitter
 
 	render: ->
 		if @fireEvent 'render'
+			@container.calcSize 'Height'
 			@root.render()
 			@sidebar.render()
 			@ruler.render()
@@ -354,7 +422,8 @@ class TL.Timeline extends TL.EventEmitter
 		scale: 1
 		timezone: 'UTC'
 		snapResolution: 1
-		height: '100%'
+		height: null
+		maxHeight: null
 		createElement: null
 		dashRules: []
 		ranges: []
@@ -439,7 +508,7 @@ class TL.Timeline extends TL.EventEmitter
 		time ?= @getCurrentTime()
 		
 		offset = @getOffset time
-		console.log "Preoffset: #{offset}"
+		
 		unless offset?
 			for range in @ranges
 				rangeBeforeTime = range if range.raw.to <= time
@@ -447,15 +516,12 @@ class TL.Timeline extends TL.EventEmitter
 				rangeBeforeTime.getOffset() + rangeBeforeTime.getOuterWidth() - 1
 			else
 				0
-		console.log rangeBeforeTime
-		console.log "Postoffset: #{offset}"
 
 		viewWidth = @field.getView().$dom.width()
-		#fullWidth = TL.Misc.sum(range.getOuterWidth() for range in @ranges)
 
 		offset = offset - viewWidth * @config.scrollPointPosition
 		offset = 'left' if offset < 0
-		console.log "Final offset: #{offset}"
+		
 		@ruler.getView().$dom.mCustomScrollbar 'scrollTo', x: offset
 
 	getCurrentTime: ->
@@ -972,7 +1038,10 @@ class TL.Element extends TL.mixOf TL.Sized, TL.Registrable, TL.MultiViewed, TL.R
 		@timeline.config[@className] ? {}
 
 	getRawHeight: ->
-		@lookupProperty 'height', 'auto'
+		@lookupProperty 'height'
+
+	getRawMaxHeight: ->
+		@lookupProperty 'maxHeight'
 
 	getExtraOffsetBefore: ->
 		@lookupProperty 'extraOffsetBefore', 0
@@ -983,17 +1052,18 @@ class TL.Element extends TL.mixOf TL.Sized, TL.Registrable, TL.MultiViewed, TL.R
 	lookupProperty: (name, fallbackValue)->
 		@raw[name] ? @cfg()[name] ? @constructor[name] ? fallbackValue
 
-class TL.Element.Container extends TL.Sized
+class TL.Element.Container extends TL.mixOf TL.Sized
 	constructor: (@$dom, @timeline)->
+		super()
 
 	getRawHeight: ->
-		0
+		@$dom.innerHeight()
 
 	getInnerHeight: ->
 		@$dom.innerHeight()
 
 	getChildrenElements: ->
-		[@timeline]
+		[@timeline.root]
 
 	getView: ->
 		{type: 'default', @$dom}
@@ -1025,7 +1095,10 @@ class TL.Element.Root extends TL.Element
 		@timeline.groups.concat [@timeline.ruler]
 
 	getRawHeight: ->
-		@timeline.config.height ? 'auto'
+		@timeline.config.height ? 'content'
+
+	getRawMaxHeight: ->
+		@timeline.config.maxHeight
 
 class TL.Element.Sidebar extends TL.Element
 	getClassName: ->
@@ -1453,8 +1526,11 @@ class TL.Element.Line extends TL.Element
 	getRawHeight: ->
 		@lookupProperty 'height', 0
 
+	getRawMaxHeight: ->
+		@lookupProperty 'maxHeight'
+
 	getInnerHeight: ->
-		@calcSize 'Height'
+		@getCalcedSize 'Height'
 
 	getOuterHeight: ->
 		@getInnerHeight() +

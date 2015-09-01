@@ -228,52 +228,154 @@
   TL.Sized = (function() {
     function Sized() {}
 
+    Sized.prototype.init = function() {
+      return this.sizeCache = {
+        Height: {},
+        Width: {}
+      };
+    };
+
+    Sized.prototype.deinit = function() {
+      return delete this.sizeCache;
+    };
+
+    Sized.prototype.clearCache = function(axis) {
+      return this.sizeCache[axis] = {};
+    };
+
     Sized.prototype.getSize = function(type, axis) {
       return this['get' + type + axis]();
     };
 
+    Sized.prototype.getCalcedSize = function(axis) {
+      return this.sizeCache[axis].size;
+    };
+
     Sized.prototype.calcSize = function(axis) {
-      var child, innerSpace, isString, parent, parts, percents, remainingSpace, sibling, siblingVerb, siblings, totalParts, verb, _i, _len;
-      verb = this['getRaw' + axis]();
-      isString = $.type(verb) === 'string';
-      if (verb === 'auto') {
+      var child, max, maxRule, rule, size, _i, _len, _ref, _results;
+      this.clearCache(axis);
+      rule = this.getSizeRule(axis);
+      size = this.calcSizeByRule(axis, rule);
+      maxRule = this.getSizeRule(axis, 'Max');
+      if (maxRule != null) {
+        max = this.calcSizeByRule(axis, maxRule);
+        if (size > max) {
+          size = max;
+          this.sizeCache[axis].overridedRule = ['px', max];
+          this.sizeCache[axis].size = size;
+          this.getParentElement().recalcPartialChildren(axis);
+        }
+      }
+      this.sizeCache[axis].size = size;
+      _ref = this.getChildrenElements();
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        child = _ref[_i];
+        _results.push(child.calcSize(axis));
+      }
+      return _results;
+    };
+
+    Sized.prototype.calcSizeByRule = function(axis, rule) {
+      var child, innerSpace, parent, parts, percents, remainingSpace, totalParts, _i, _len, _ref, _ref1;
+      if ((rule == null) || rule[0] === 'content') {
+        _ref = this.getChildrenElements();
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          child = _ref[_i];
+          child.calcSize(axis);
+        }
         return TL.Misc.sum((function() {
-          var _i, _len, _ref, _results;
-          _ref = this.getChildrenElements();
+          var _j, _len1, _ref1, _results;
+          _ref1 = this.getChildrenElements();
           _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            child = _ref[_i];
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            child = _ref1[_j];
             _results.push(child.getSize('Outer', axis));
           }
           return _results;
         }).call(this));
-      } else if ($.type(verb) === 'number') {
-        return verb;
-      } else if (isString && verb.indexOf('px') > -1) {
-        return parseInt(verb);
-      } else if (isString && verb.indexOf('%') > -1) {
-        percents = parseInt(verb);
-        parent = this.getParentElement();
-        innerSpace = parent != null ? parent.getSize('Inner', axis) : 0;
+      } else if (rule[0] === 'px') {
+        return rule[1];
+      } else if (rule[0] === '%') {
+        percents = rule[1];
+        parent = rule[2];
+        innerSpace = parent.getSize('Inner', axis);
         return Math.round(innerSpace * percents / 100) - this.getExtraOffsetBefore() - this.getExtraOffsetAfter();
-      } else if (isString && verb.indexOf('part') > -1) {
-        parts = parseInt(verb);
-        totalParts = 0;
-        parent = this.getParentElement();
-        remainingSpace = parent != null ? parent.getSize('Inner', axis) : 0;
-        if (parent != null) {
-          siblings = parent.getChildrenElements();
-          for (_i = 0, _len = siblings.length; _i < _len; _i++) {
-            sibling = siblings[_i];
-            siblingVerb = sibling.getSize('Raw', axis);
-            if ($.type(siblingVerb) === 'string' && siblingVerb.indexOf('part') > -1) {
-              totalParts += parseInt(siblingVerb);
-            } else {
-              remainingSpace -= sibling.getSize('Outer', axis);
-            }
-          }
-        }
+      } else if (rule[0] === 'parts') {
+        parts = rule[1];
+        parent = rule[2];
+        _ref1 = parent.getChildrenPartsAndRemaining(axis), totalParts = _ref1[0], remainingSpace = _ref1[1];
         return Math.round(remainingSpace * parts / totalParts) - this.getExtraOffsetBefore() - this.getExtraOffsetAfter();
+      } else {
+        return 0;
+      }
+    };
+
+    Sized.prototype.recalcPartialChildren = function(axis) {
+      var child, rule, _i, _len, _ref, _results;
+      _ref = this.getChildrenElements();
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        child = _ref[_i];
+        rule = child.getCurrentSizeRule(axis);
+        if ((rule != null ? rule[0] : void 0) === 'parts') {
+          _results.push(child.calcSize(axis));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
+    Sized.prototype.getChildrenPartsAndRemaining = function(axis) {
+      var child, children, remainingSpace, rule, totalParts, _i, _len;
+      totalParts = 0;
+      children = this.getChildrenElements();
+      remainingSpace = this.getSize('Inner', axis);
+      for (_i = 0, _len = children.length; _i < _len; _i++) {
+        child = children[_i];
+        rule = child.getCurrentSizeRule(axis);
+        if ((rule != null ? rule[0] : void 0) === 'parts') {
+          totalParts += rule[1];
+        } else {
+          remainingSpace -= child.getSize('Outer', axis);
+        }
+      }
+      return [totalParts, remainingSpace];
+    };
+
+    Sized.prototype.getCurrentSizeRule = function(axis) {
+      var _ref;
+      return (_ref = this.sizeCache[axis].overridedRule) != null ? _ref : this.getSizeRule(axis);
+    };
+
+    Sized.prototype.getSizeRule = function(axis, bound) {
+      var isString, parent, verb;
+      if (bound == null) {
+        bound = '';
+      }
+      verb = this['getRaw' + bound + axis]();
+      isString = $.type(verb) === 'string';
+      if (verb === 'content') {
+        return ['content'];
+      } else if ($.type(verb) === 'number') {
+        return ['px', verb];
+      } else if (isString && verb.indexOf('px') > -1) {
+        return ['px', parseInt(verb)];
+      } else if (isString && verb.indexOf('%') > -1) {
+        parent = this.getParentElement();
+        if ((parent != null) && parent.getCurrentSizeRule(axis)[0] !== 'content') {
+          return ['%', parseInt(verb), parent];
+        } else {
+          return ['content'];
+        }
+      } else if (isString && verb.indexOf('part') > -1) {
+        parent = this.getParentElement();
+        if ((parent != null) && parent.getCurrentSizeRule(axis)[0] !== 'content') {
+          return ['parts', parseInt(verb), parent];
+        } else {
+          return ['content'];
+        }
       }
     };
 
@@ -287,8 +389,10 @@
       return 'auto';
     };
 
+    Sized.prototype.getRawMaxHeight = function() {};
+
     Sized.prototype.getInnerHeight = function() {
-      return this.calcSize('Height');
+      return this.getCalcedSize('Height');
     };
 
     Sized.prototype.getOuterHeight = function() {
@@ -376,6 +480,7 @@
     Timeline.prototype.render = function() {
       var dash, group, item, line, locker, range, slot, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _len5, _len6, _m, _n, _o, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6;
       if (this.fireEvent('render')) {
+        this.container.calcSize('Height');
         this.root.render();
         this.sidebar.render();
         this.ruler.render();
@@ -615,7 +720,8 @@
         scale: 1,
         timezone: 'UTC',
         snapResolution: 1,
-        height: '100%',
+        height: null,
+        maxHeight: null,
         createElement: null,
         dashRules: [],
         ranges: [],
@@ -775,7 +881,6 @@
         time = this.getCurrentTime();
       }
       offset = this.getOffset(time);
-      console.log("Preoffset: " + offset);
       if (offset == null) {
         _ref = this.ranges;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -786,14 +891,11 @@
         }
         offset = rangeBeforeTime != null ? rangeBeforeTime.getOffset() + rangeBeforeTime.getOuterWidth() - 1 : 0;
       }
-      console.log(rangeBeforeTime);
-      console.log("Postoffset: " + offset);
       viewWidth = this.field.getView().$dom.width();
       offset = offset - viewWidth * this.config.scrollPointPosition;
       if (offset < 0) {
         offset = 'left';
       }
-      console.log("Final offset: " + offset);
       return this.ruler.getView().$dom.mCustomScrollbar('scrollTo', {
         x: offset
       });
@@ -1629,7 +1731,11 @@
     };
 
     Element.prototype.getRawHeight = function() {
-      return this.lookupProperty('height', 'auto');
+      return this.lookupProperty('height');
+    };
+
+    Element.prototype.getRawMaxHeight = function() {
+      return this.lookupProperty('maxHeight');
     };
 
     Element.prototype.getExtraOffsetBefore = function() {
@@ -1655,10 +1761,11 @@
     function Container($dom, timeline) {
       this.$dom = $dom;
       this.timeline = timeline;
+      Container.__super__.constructor.call(this);
     }
 
     Container.prototype.getRawHeight = function() {
-      return 0;
+      return this.$dom.innerHeight();
     };
 
     Container.prototype.getInnerHeight = function() {
@@ -1666,7 +1773,7 @@
     };
 
     Container.prototype.getChildrenElements = function() {
-      return [this.timeline];
+      return [this.timeline.root];
     };
 
     Container.prototype.getView = function() {
@@ -1678,7 +1785,7 @@
 
     return Container;
 
-  })(TL.Sized);
+  })(TL.mixOf(TL.Sized));
 
   TL.Element.Root = (function(_super) {
     __extends(Root, _super);
@@ -1722,7 +1829,11 @@
 
     Root.prototype.getRawHeight = function() {
       var _ref;
-      return (_ref = this.timeline.config.height) != null ? _ref : 'auto';
+      return (_ref = this.timeline.config.height) != null ? _ref : 'content';
+    };
+
+    Root.prototype.getRawMaxHeight = function() {
+      return this.timeline.config.maxHeight;
     };
 
     return Root;
@@ -2491,8 +2602,12 @@
       return this.lookupProperty('height', 0);
     };
 
+    Line.prototype.getRawMaxHeight = function() {
+      return this.lookupProperty('maxHeight');
+    };
+
     Line.prototype.getInnerHeight = function() {
-      return this.calcSize('Height');
+      return this.getCalcedSize('Height');
     };
 
     Line.prototype.getOuterHeight = function() {

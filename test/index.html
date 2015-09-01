@@ -24,12 +24,14 @@
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['users']); return false;">[+ userItem]</a>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}, ['posts']); return false;">[+ postItem]</a>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', defaultDuration: TL.hour}); return false;">[+ 1-hour item]</a> <span id="info"></span>
-    	<div id="test" style="height: 500px;"></div>
+    	<div id="test" style="position:absolute; bottom:0;left:0; right:0; top:30px; background:yellow;"></div>
     	<script>
     		$(function(){
     			moment.locale('ru');
 	    		tl = new TL.Timeline('#test', {
 	    			isStrict: false,
+                    height: 'content',
+                    maxHeight: '100%',
 	    			line: {
 	    				extraOffsetAfter: 1,
 						fillAtSidebar: function(view){
@@ -37,13 +39,13 @@
 							view.$dom.append(TL.Misc.addDom('text').html(this.raw.html));
 						}
 	    			},
-	    			group: {extraOffsetAfter: 3},
+	    			group: {extraOffsetAfter: 3, height: '100px'},
 	    			range: {
 	    				extraOffsetAfter: 5,
 	    				fillAtRuler: function(view){
 	    					var offset = -moment.unix(this.raw.from).tz('UTC').minutes() / 10 * 12;
 	    					view.$dom.css('background-position', offset + 'px bottom');
-	    					view.$dom.children('.tl-text').remove()
+	    					view.$dom.children('.tl-heading').remove();
 	    					view.$dom.append(TL.Misc.addDom('heading').text(moment.unix(this.raw.from).tz('UTC').format('D MMMM YYYY')));
 	    				},
 	    				fillDefault: function(view){
@@ -166,11 +168,11 @@
 	    				{
 							from: moment.tz('20.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('20.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
-	    				},
+	    				}
 	    			],
 	    			groups: [
-	    				{id: 'users', height: 'auto'},
-	    				{id: 'posts', height: '1 part', extraOffsetAfter: 0}
+                        {id: 'posts', height: '1 part', maxHeight: 'content', order: 2},
+                        {id: 'users', height: '1 part', maxHeight: 'content', order: 1}
 	    			],
 	    			lines: [
 	    				{id: 'user:1', groupId: 'users', height: 40, order: 1, html: 'Мастер-приёмщик<br>Иванов И. И.', restrictSlotsTo: [
@@ -181,7 +183,8 @@
 	    						step: TL.week
 	    					}
 	    				]},
-	    				{id: 'user:2', groupId: 'users', height: 40, order: 2, html: 'Мастер-приёмщик<br>Константинопольский К. К.', extraOffsetAfter: 18},
+	    				{id: 'user:2', groupId: 'users', height: 40, order: 2, html: 'Мастер-приёмщик<br>Константинопольский К. К.'},
+	    				{id: 'user:3', groupId: 'users', height: 40, order: 3, html: 'Мастер-приёмщик<br>Константинопольский К. К.'},
 	    				{id: 'post:1', groupId: 'posts', height: 68, order: 1, html: '<br><strong>Подъёмник 1</strong><br>80%', restrictSlotsTo: [
 	    					{
 	    						// Доступно каждый день с 10-ти утра в течении 4-х часов
@@ -241,6 +244,10 @@
 						+ moment.unix(e.item.raw.to).tz('UTC').format('DD.MM.YYYY HH:mm:ss')
 					);
 				});
+
+                $(window).resize(function () {
+                    tl.render();
+                });
 	    	});
 
 			/*
