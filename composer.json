@@ -1,0 +1,30 @@
+{
+    "name": "bunchachis/timeline",
+    "type": "component",
+    "version": "0.2.10",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ilya Bunkov"
+        },
+        {
+            "name": "Tarasov Konstantin",
+            "email": "terrasoff@terrasoff.ru"
+        }
+    ],
+    "extra": {
+        "name": "timeline",
+        "component": {
+            "scripts": [
+                "dist/*.js"
+            ],
+            "styles": [
+                "dist/styles/*.css"
+            ],
+            "files": [
+                "dist/*.js",
+                "dist/styles/*"
+            ]
+        }
+    }
+}
