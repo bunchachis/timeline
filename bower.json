@@ -1,10 +1,13 @@
 {
   "name": "javascript-timeline",
-  "version": "0.3.1",
+  "version": "0.2.10",
   "main": "timeline.css",
   "description": "Javascript timellne",
   "license": "MIT",
   "authors": [
+    {
+        "name": "Ilya Bunkov"
+    },
     {
       "name": "Tarasov Konstantin",
       "email": "terrasoff@terrasoff.ru"
