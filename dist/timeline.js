@@ -1333,6 +1333,11 @@
         }
         return _results;
       };
+      $(document).on('mousewheel DOMMouseScroll', function(e) {
+        if ($(e.target).closest('.mCustomScrollbar').data('mCS')) {
+          return e.preventDefault();
+        }
+      });
       return $element.mCustomScrollbar(config);
     };
 

@@ -810,6 +810,9 @@ class TL.Misc
 							callbacks: no
 						$(@).trigger 'tl.scroll', [left: parseInt(position.x), top: parseInt(position.y)]
 
+		$(document).on 'mousewheel DOMMouseScroll', (e)->
+            e.preventDefault() if $(e.target).closest('.mCustomScrollbar').data 'mCS'
+
 		$element.mCustomScrollbar config
 
 	@getScrollOffset: ($element)->
