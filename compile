@@ -1,4 +1,4 @@
 #!/bin/bash
 coffee -o dist -c src/timeline.coffee
-lessc src/styles/timeline.less > dist/styles/timeline.css
-lessc src/styles/timeline-theme.less > dist/styles/timeline-theme.css
+lessc src/styles/timeline.less > dist/timeline.css
+lessc src/styles/timeline-theme.less > dist/timeline-theme.css
