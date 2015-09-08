@@ -1,7 +1,7 @@
 {
     "name": "bunchachis/timeline",
     "type": "component",
-    "version": "0.2.11",
+    "version": "0.2.12",
     "license": "MIT",
     "authors": [
         {
@@ -12,6 +12,13 @@
             "email": "terrasoff@terrasoff.ru"
         }
     ],
+    "require": {
+        "robloach/component-installer": "*",
+        "components/jquery": "2.*",
+        "components/jqueryui": "~1.11",
+        "moment/moment": "~2.8",
+        "oro/moment-timezone": "0.*"
+    },
     "extra": {
         "name": "timeline",
         "component": {
@@ -19,11 +26,10 @@
                 "dist/*.js"
             ],
             "styles": [
-                "dist/styles/*.css"
+                "dist/*.css"
             ],
             "files": [
-                "dist/*.js",
-                "dist/styles/*"
+                "dist/**"
             ]
         }
     }

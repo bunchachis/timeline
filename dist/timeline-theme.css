@@ -59,7 +59,7 @@
   font-size: 14px;
 }
 .tl-root .tl-ruler {
-  background: #fafafa url('../../src/img/day.png') repeat-x left bottom;
+  background: #fafafa url('img/day.png') repeat-x left bottom;
   border-left: 1px solid #c7c7c7;
   margin-left: -1px;
   box-shadow: rgba(0, 0, 0, 0.35) 0 0 10px;
@@ -93,13 +93,13 @@
 }
 .tl-root .tl-ruler .tl-range {
   border-right: 5px solid #c7c7c7;
-  background: url('../../src/img/ruler-dashes.png') repeat-x left bottom;
+  background: url('img/ruler-dashes.png') repeat-x left bottom;
 }
 .tl-root .tl-ruler .tl-range .tl-heading {
   text-align: center;
   height: 26px;
   border-bottom: 1px solid #e4e4e4;
-  background: #dfdfdf url('../../src/img/day2.png') repeat-x left top;
+  background: #dfdfdf url('img/day2.png') repeat-x left top;
   font-size: 14px;
   font-weight: bold;
   line-height: 26px;
@@ -118,7 +118,7 @@
 .tl-root .tl-field .tl-group .tl-range {
   z-index: 1;
   border-right: 5px solid #c7c7c7;
-  background: url('../../src/img/dashes.png') repeat left top;
+  background: url('img/dashes.png') repeat left top;
 }
 .tl-root .tl-field .tl-group .tl-dash {
   z-index: 5;
@@ -172,7 +172,7 @@
 }
 .tl-root .tl-field .tl-group .tl-locker {
   z-index: 6;
-  background: #dedede url('../../src/img/diagonal.png') repeat fixed;
+  background: #dedede url('img/diagonal.png') repeat fixed;
 }
 .tl-root .tl-item-details {
   background: #c8e2ef;

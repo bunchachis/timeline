@@ -25,3 +25,6 @@ nbproject
 
 bower_components/
 src/*.js
+vendor/
+components/
+composer.lock
