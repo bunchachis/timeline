@@ -634,14 +634,14 @@
     };
 
     Timeline.prototype.rawAddItem = function(item) {
-      if (!item.isValid()) {
-        this.warn('Can\'t add item due to its invalidity');
-        return;
-      }
       return this.items.push(item);
     };
 
     Timeline.prototype.addItem = function(item) {
+      if (!item.isValid()) {
+        this.warn('Can\'t add item due to its invalidity');
+        return;
+      }
       if (this.fireEvent('item:create', {
         item: item
       })) {

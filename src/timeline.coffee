@@ -351,13 +351,13 @@ class TL.Timeline extends TL.EventEmitter
 		item = @createElement 'Item', raw
 
 	rawAddItem: (item)->
+		@items.push item
+
+	addItem: (item)->
 		unless item.isValid()
 			@warn 'Can\'t add item due to its invalidity'
 			return
 
-		@items.push item 
-
-	addItem: (item)->
 		if @fireEvent 'item:create', {item}
 			@rawAddItem item
 			item.render()
