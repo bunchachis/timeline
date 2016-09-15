@@ -11,13 +11,13 @@
         <script src="../bower_components/moment-timezone/builds/moment-timezone-with-data-2010-2020.min.js"></script>
         <script src="../bower_components/jquery/dist/jquery.min.js"></script>
         <script src="../bower_components/jqueryui/jquery-ui.min.js"></script>
-        <script src="../components/jquery.mCustomScrollbar.js"></script>
+        <script src="../dist/jquery.mCustomScrollbar.js"></script>
         <script src="../dist/timeline.js"></script>
 
 
-        <link rel="stylesheet" href="../components/jquery.mCustomScrollbar.css" />
-        <link rel="stylesheet" type="text/css" href="../dist/styles/timeline.css" />
-        <link rel="stylesheet" type="text/css" href="../dist/styles/timeline-theme.css" />
+        <link rel="stylesheet" href="../dist/jquery.mCustomScrollbar.css" />
+        <link rel="stylesheet" type="text/css" href="../dist/timeline.css" />
+        <link rel="stylesheet" type="text/css" href="../dist/timeline-theme.css" />
     </head>
     <body>
 		<a href="#" onclick="tl.icm.activate({text: 'new-item', minDuration: 15 * TL.minute}); return false;">[+ item]</a>
@@ -168,6 +168,10 @@
 	    				{
 							from: moment.tz('20.11.2014 08:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 							to: moment.tz('20.11.2014 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+	    				},
+	    				{
+							from: moment.tz('15.09.2016 06:00:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
+							to: moment.tz('15.09.2016 21:30:00', 'DD.MM.YYYY HH:mm:ss', 'UTC').unix(),
 	    				}
 	    			],
 	    			groups: [

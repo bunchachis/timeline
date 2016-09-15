@@ -902,9 +902,7 @@
     };
 
     Timeline.prototype.getCurrentTime = function() {
-      var nowString;
-      nowString = moment().format('DD.MM.YYYY HH:mm:ss');
-      return moment.tz(nowString, 'DD.MM.YYYY HH:mm:ss', this.config.timezone).unix();
+      return moment().unix();
     };
 
     return Timeline;

@@ -525,8 +525,7 @@ class TL.Timeline extends TL.EventEmitter
 		@ruler.getView().$dom.mCustomScrollbar 'scrollTo', x: offset
 
 	getCurrentTime: ->
-		nowString = moment().format('DD.MM.YYYY HH:mm:ss')
-		moment.tz(nowString, 'DD.MM.YYYY HH:mm:ss', @config.timezone).unix()
+		moment().unix()
 
 class TL.InteractiveCreationMode
 	constructor: (@timeline)->
