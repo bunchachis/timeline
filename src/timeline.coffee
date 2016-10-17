@@ -134,7 +134,7 @@ class TL.Sized
 	calcSizeByRule: (axis, rule)->
 		if !rule? or rule[0] is 'content'
 			child.calcSize axis for child in @getChildrenElements()
-			TL.Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements()) # lookdown
+			TL.Misc.sum(child.getSize 'Outer', axis for child in @getChildrenElements()) # look down
 		else if rule[0] is 'px'
 			rule[1] # implicit
 		else if rule[0] is '%' 
@@ -191,13 +191,13 @@ class TL.Sized
 			if parent? and parent.getCurrentSizeRule(axis)[0] isnt 'content'
 				['%', parseInt(verb), parent] # look up
 			else
-				['content'] # fallback to lookdown
+				['content'] # fallback to look down
 		else if isString and verb.indexOf('part') > -1 
 			parent = @getParentElement()
 			if parent? and parent.getCurrentSizeRule(axis)[0] isnt 'content'
 				['parts', parseInt(verb), parent] # look up
 			else 
-				['content'] # fallback to lookdown
+				['content'] # fallback to look down
 
 	getParentElement: ->
 
@@ -414,6 +414,7 @@ class TL.Timeline extends TL.EventEmitter
 			fillDetails: null
 			placeDetails: null
 			isValid: null
+			doesWorkOutOfSlots: no
 		dash:
 			fillDefault: null
 			placeDefault: null
@@ -624,7 +625,7 @@ class TL.InteractiveCreationMode
 		@clickHandler = (e)=>
 			if @from?
 				if @itemTemplate.defaultDuration?
-					@to = @from + @itemTemplate.defaultDuration
+					@to = @line.calculateToTime @from, @itemTemplate.defaultDuration
 					@tryCreateItem()
 				else 
 					@activateState 'SetEnding'
@@ -721,7 +722,7 @@ class TL.InteractiveCreationMode
 				when 'SetBeginning'
 					offset = @timeline.getOffset @from
 					if @itemTemplate.defaultDuration?
-						toOffset = @timeline.getOffset(@from + @itemTemplate.defaultDuration - 1)
+						toOffset = @timeline.getOffset(@line.calculateToTime(@from, @itemTemplate.defaultDuration) - 1)
 						width = if toOffset? then toOffset - offset else ''
 					else
 						width = ''
@@ -1639,6 +1640,29 @@ class TL.Element.Line extends TL.Element
 
 		{slots, lockers}
 
+	getSlots: ()->
+		slot for slot in @timeline.slots when slot.raw.lineId is @raw.id
+
+	calculateToTime: (from, duration)->
+		remainingDuration = duration
+		fromSlot = @timeline.getSlotByLineIdAndTime @raw.id, from
+		if fromSlot
+			for slot in @getSlots() when slot.raw.from >= fromSlot.raw.from
+				if slot is fromSlot
+					timeInSlot = slot.raw.to - from
+					startPoint = from
+				else
+					timeInSlot = slot.getDuration()
+					startPoint = slot.raw.from
+
+				if remainingDuration <= timeInSlot
+					return startPoint + remainingDuration
+				else
+					remainingDuration -= timeInSlot
+
+		# at this point we have excess duration, that didn't fit in all available slots
+		null
+
 class TL.Element.Slot extends TL.Element
 	getClassName: ->
 		'slot'
@@ -1675,6 +1699,9 @@ class TL.Element.Slot extends TL.Element
 			height: line.getInnerHeight()
 			left: offset
 			width: @timeline.getOffset(@raw.to-1) - offset
+
+	getDuration: ->
+		@raw.to - @raw.from
 
 class TL.Element.Locker extends TL.Element
 	getClassName: ->
@@ -1720,8 +1747,35 @@ class TL.Element.Item extends TL.Element
 	getLine: ->
 		@timeline.getLineById @raw.lineId
 
+	getFromSlot: ->
+		@timeline.getSlotByLineIdAndTime @raw.lineId, @raw.from
+
+	getToSlot: ->
+		@timeline.getSlotByLineIdAndTime @raw.lineId, @raw.to - 1
+
 	getDuration: ->
-		@raw.to - @raw.from
+		if @doesWorkOutOfSlots()
+			@raw.to - @raw.from
+		else
+			@getDurationInSlots()
+
+	getDurationInSlots: ->
+		fromSlot = @getFromSlot()
+		toSlot = @getToSlot()
+
+		if fromSlot is toSlot
+			duration = @raw.to - @raw.from
+		else
+			betweenSlots = (slot for slot in @getLine().getSlots() when fromSlot.raw.from < slot.raw.from < toSlot.raw.from)
+			duration = 0
+			duration += fromSlot.raw.to - @raw.from
+			duration += slot.getDuration() for slot in betweenSlots
+			duration += @raw.to - toSlot.raw.from
+
+		duration
+
+	doesWorkOutOfSlots: ->
+		@lookupProperty 'doesWorkOutOfSlots', yes
 
 	isDraggable: ->
 		@lookupProperty 'isDraggable', yes
@@ -1830,6 +1884,7 @@ class TL.Element.Item extends TL.Element
 		modified = null
 		$dragHint = null
 		holdPos = null
+		duration = null
 
 		$dom.draggable
 			helper: =>
@@ -1837,6 +1892,7 @@ class TL.Element.Item extends TL.Element
 					width: $dom.css 'width'
 					height: $dom.css 'height'
 			start: (e, ui)=>
+				duration = @getDuration()
 				$dragHint = TL.Misc.addDom 'drag-hint', @getLine().getGroup().getView().$dom
 				modified = @getClone()
 				domOffset = $dom.offset()
@@ -1858,20 +1914,17 @@ class TL.Element.Item extends TL.Element
 					left: drag.event.pageX - drag.parentOffset.left - drag.holdPos.left
 					top: drag.event.pageY - drag.parentOffset.top - drag.holdPos.top
 
-				duration = @getDuration()
-				modified.raw.from = @timeline.approxTime @timeline.getTime drag.domPos.left
-				modified.raw.to = modified.raw.from + duration
 				newLine = @timeline.getLineByVerticalOffset group, drag.event.pageY - drag.parentOffset.top
 				modified.raw.lineId = newLine.raw.id if newLine
-				
+				modified.setFromAndDuration @timeline.approxTime(@timeline.getTime drag.domPos.left), duration
+
 				unless modified.isValid()
 					originalLeft = @timeline.getOffset @raw.from
 					direction = Math.sign drag.domPos.left - originalLeft
 					attemptLeft = drag.domPos.left
 					while attemptLeft isnt originalLeft
 						attemptLeft -= direction
-						modified.raw.from = @timeline.approxTime @timeline.getTime attemptLeft
-						modified.raw.to = modified.raw.from + duration
+						modified.setFromAndDuration @timeline.approxTime(@timeline.getTime attemptLeft), duration
 						break if modified.isValid()
 
 				@renderDragHint $dragHint, drag, modified
@@ -2052,6 +2105,16 @@ class TL.Element.Item extends TL.Element
 		@timeline.items = @timeline.items.filter (item)=> @ isnt item
 		@destructor()
 
+	setFromAndDuration: (from, duration)->
+		@raw.from = from
+		if @doesWorkOutOfSlots()
+			@raw.to = from + duration
+		else
+			@raw.to = @calculateToTime duration
+
+	calculateToTime: (duration)->
+		@getLine().calculateToTime @raw.from, duration
+
 class TL.Element.DashRule
 	constructor: (@timeline, @raw = {})->
 		@insertDashes()
@@ -2155,4 +2218,9 @@ TL.Element.Events = {
 		START: 'item:drag:start',
 		STOP: 'item:drag:stop',
 	}
+}
+
+TL.Element.Item.DurationMode = {
+	DIRECT: 'direct',
+	BY_END: 'by-end',
 }

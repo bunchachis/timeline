@@ -709,7 +709,8 @@
           placeDefault: null,
           fillDetails: null,
           placeDetails: null,
-          isValid: null
+          isValid: null,
+          doesWorkOutOfSlots: false
         },
         dash: {
           fillDefault: null,
@@ -1040,7 +1041,7 @@
         return function(e) {
           if (_this.from != null) {
             if (_this.itemTemplate.defaultDuration != null) {
-              _this.to = _this.from + _this.itemTemplate.defaultDuration;
+              _this.to = _this.line.calculateToTime(_this.from, _this.itemTemplate.defaultDuration);
               return _this.tryCreateItem();
             } else {
               return _this.activateState('SetEnding');
@@ -1186,7 +1187,7 @@
           case 'SetBeginning':
             offset = this.timeline.getOffset(this.from);
             if (this.itemTemplate.defaultDuration != null) {
-              toOffset = this.timeline.getOffset(this.from + this.itemTemplate.defaultDuration - 1);
+              toOffset = this.timeline.getOffset(this.line.calculateToTime(this.from, this.itemTemplate.defaultDuration) - 1);
               width = toOffset != null ? toOffset - offset : '';
             } else {
               width = '';
@@ -2773,6 +2774,47 @@
       };
     };
 
+    Line.prototype.getSlots = function() {
+      var slot, _i, _len, _ref, _results;
+      _ref = this.timeline.slots;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        slot = _ref[_i];
+        if (slot.raw.lineId === this.raw.id) {
+          _results.push(slot);
+        }
+      }
+      return _results;
+    };
+
+    Line.prototype.calculateToTime = function(from, duration) {
+      var fromSlot, remainingDuration, slot, startPoint, timeInSlot, _i, _len, _ref;
+      remainingDuration = duration;
+      fromSlot = this.timeline.getSlotByLineIdAndTime(this.raw.id, from);
+      if (fromSlot) {
+        _ref = this.getSlots();
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          slot = _ref[_i];
+          if (!(slot.raw.from >= fromSlot.raw.from)) {
+            continue;
+          }
+          if (slot === fromSlot) {
+            timeInSlot = slot.raw.to - from;
+            startPoint = from;
+          } else {
+            timeInSlot = slot.getDuration();
+            startPoint = slot.raw.from;
+          }
+          if (remainingDuration <= timeInSlot) {
+            return startPoint + remainingDuration;
+          } else {
+            remainingDuration -= timeInSlot;
+          }
+        }
+      }
+      return null;
+    };
+
     return Line;
 
   })(TL.Element);
@@ -2829,6 +2871,10 @@
         left: offset,
         width: this.timeline.getOffset(this.raw.to - 1) - offset
       });
+    };
+
+    Slot.prototype.getDuration = function() {
+      return this.raw.to - this.raw.from;
     };
 
     return Slot;
@@ -2908,8 +2954,54 @@
       return this.timeline.getLineById(this.raw.lineId);
     };
 
+    Item.prototype.getFromSlot = function() {
+      return this.timeline.getSlotByLineIdAndTime(this.raw.lineId, this.raw.from);
+    };
+
+    Item.prototype.getToSlot = function() {
+      return this.timeline.getSlotByLineIdAndTime(this.raw.lineId, this.raw.to - 1);
+    };
+
     Item.prototype.getDuration = function() {
-      return this.raw.to - this.raw.from;
+      if (this.doesWorkOutOfSlots()) {
+        return this.raw.to - this.raw.from;
+      } else {
+        return this.getDurationInSlots();
+      }
+    };
+
+    Item.prototype.getDurationInSlots = function() {
+      var betweenSlots, duration, fromSlot, slot, toSlot, _i, _len;
+      fromSlot = this.getFromSlot();
+      toSlot = this.getToSlot();
+      if (fromSlot === toSlot) {
+        duration = this.raw.to - this.raw.from;
+      } else {
+        betweenSlots = (function() {
+          var _i, _len, _ref, _ref1, _results;
+          _ref = this.getLine().getSlots();
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            slot = _ref[_i];
+            if ((fromSlot.raw.from < (_ref1 = slot.raw.from) && _ref1 < toSlot.raw.from)) {
+              _results.push(slot);
+            }
+          }
+          return _results;
+        }).call(this);
+        duration = 0;
+        duration += fromSlot.raw.to - this.raw.from;
+        for (_i = 0, _len = betweenSlots.length; _i < _len; _i++) {
+          slot = betweenSlots[_i];
+          duration += slot.getDuration();
+        }
+        duration += this.raw.to - toSlot.raw.from;
+      }
+      return duration;
+    };
+
+    Item.prototype.doesWorkOutOfSlots = function() {
+      return this.lookupProperty('doesWorkOutOfSlots', true);
     };
 
     Item.prototype.isDraggable = function() {
@@ -3057,10 +3149,11 @@
     };
 
     Item.prototype.makeDraggable = function($dom) {
-      var $dragHint, holdPos, modified;
+      var $dragHint, duration, holdPos, modified;
       modified = null;
       $dragHint = null;
       holdPos = null;
+      duration = null;
       return $dom.draggable({
         helper: (function(_this) {
           return function() {
@@ -3073,6 +3166,7 @@
         start: (function(_this) {
           return function(e, ui) {
             var domOffset;
+            duration = _this.getDuration();
             $dragHint = TL.Misc.addDom('drag-hint', _this.getLine().getGroup().getView().$dom);
             modified = _this.getClone();
             domOffset = $dom.offset();
@@ -3098,7 +3192,7 @@
         })(this),
         drag: (function(_this) {
           return function(e, ui) {
-            var attemptLeft, direction, drag, duration, group, newLine, originalLeft, parentOffset;
+            var attemptLeft, direction, drag, group, newLine, originalLeft, parentOffset;
             group = _this.getLine().getGroup();
             parentOffset = TL.Misc.getScrollContainer(group.getView().$dom).offset();
             drag = {
@@ -3110,21 +3204,18 @@
               left: drag.event.pageX - drag.parentOffset.left - drag.holdPos.left,
               top: drag.event.pageY - drag.parentOffset.top - drag.holdPos.top
             };
-            duration = _this.getDuration();
-            modified.raw.from = _this.timeline.approxTime(_this.timeline.getTime(drag.domPos.left));
-            modified.raw.to = modified.raw.from + duration;
             newLine = _this.timeline.getLineByVerticalOffset(group, drag.event.pageY - drag.parentOffset.top);
             if (newLine) {
               modified.raw.lineId = newLine.raw.id;
             }
+            modified.setFromAndDuration(_this.timeline.approxTime(_this.timeline.getTime(drag.domPos.left)), duration);
             if (!modified.isValid()) {
               originalLeft = _this.timeline.getOffset(_this.raw.from);
               direction = Math.sign(drag.domPos.left - originalLeft);
               attemptLeft = drag.domPos.left;
               while (attemptLeft !== originalLeft) {
                 attemptLeft -= direction;
-                modified.raw.from = _this.timeline.approxTime(_this.timeline.getTime(attemptLeft));
-                modified.raw.to = modified.raw.from + duration;
+                modified.setFromAndDuration(_this.timeline.approxTime(_this.timeline.getTime(attemptLeft)), duration);
                 if (modified.isValid()) {
                   break;
                 }
@@ -3395,6 +3486,19 @@
       return this.destructor();
     };
 
+    Item.prototype.setFromAndDuration = function(from, duration) {
+      this.raw.from = from;
+      if (this.doesWorkOutOfSlots()) {
+        return this.raw.to = from + duration;
+      } else {
+        return this.raw.to = this.calculateToTime(duration);
+      }
+    };
+
+    Item.prototype.calculateToTime = function(duration) {
+      return this.getLine().calculateToTime(this.raw.from, duration);
+    };
+
     return Item;
 
   })(TL.Element);
@@ -3577,6 +3681,11 @@
       START: 'item:drag:start',
       STOP: 'item:drag:stop'
     }
+  };
+
+  TL.Element.Item.DurationMode = {
+    DIRECT: 'direct',
+    BY_END: 'by-end'
   };
 
 }).call(this);
