@@ -1818,6 +1818,9 @@ class TL.Element.Item extends TL.Element
 	@placeDefault: (view)->
 		line = @getLine()
 		offset = @timeline.getOffset @raw.from
+		if !offset?
+			toRange = @timeline.getRangeByTime(@raw.to - 1)
+			offset = @timeline.getOffset(toRange.raw.from)
 		view.$dom.css
 			top: line.getVerticalOffset() + line.getInternalVerticalOffset()
 			height: line.getInnerHeight()
